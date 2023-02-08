@@ -2,7 +2,6 @@ package connect
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 
@@ -136,19 +135,7 @@ sendLoop:
 	for {
 		select {
 		case request := <-d.sendChannel:
-			select {
-			case <-d.statsTicker.C:
-				destinationTag := fmt.Sprintf("destination:%s", d.address)
-				d.statsd.Gauge(
-					"veneur_proxy.forward.buffer_size",
-					float64(len(d.sendChannel)), []string{destinationTag}, 1.0)
-				d.statsd.Gauge(
-					"veneur_proxy.forward.buffer_latency_ns",
-					float64(time.Since(request.Timestamp).Nanoseconds()),
-					[]string{destinationTag}, 1.0)
-			default:
-				// Do nothing.
-			}
+			bufferTime := time.Now()
 			err := d.client.Send(request.Metric)
 			if err == io.EOF {
 				d.logger.WithError(err).Debug("failed to forward metric")
@@ -165,6 +152,25 @@ sendLoop:
 				d.statsd.Count(
 					"veneur_proxy.forward.metrics_count", 1,
 					[]string{"error:false"}, 1.0)
+			}
+			sendTime := time.Now()
+
+			select {
+			case <-d.statsTicker.C:
+				destinationTag := "destination:" + d.address
+				d.statsd.Gauge(
+					"veneur_proxy.forward.buffer_size",
+					float64(len(d.sendChannel)), []string{destinationTag}, 1.0)
+				d.statsd.Gauge(
+					"veneur_proxy.forward.buffer_latency_ns",
+					float64(bufferTime.Sub(request.Timestamp).Nanoseconds()),
+					[]string{destinationTag}, 1.0)
+				d.statsd.Gauge(
+					"veneur_proxy.forward.send_latency_ns",
+					float64(sendTime.Sub(request.Timestamp).Nanoseconds()),
+					[]string{destinationTag}, 1.0)
+			default:
+				// Do nothing.
 			}
 		case <-ctx.Done():
 			break sendLoop

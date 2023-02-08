@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ type FakeServer struct {
 }
 
 func CreateFakeServer(
-	t *testing.T, ctrl *gomock.Controller,
+	t require.TestingT, ctrl *gomock.Controller,
 ) *FakeServer {
 	grpcListener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -52,7 +53,7 @@ func CreateFakeServer(
 	}
 }
 
-func (server *FakeServer) Close(t *testing.T) {
+func (server *FakeServer) Close(t require.TestingT) {
 	close(server.closeConnection)
 
 	server.server.GracefulStop()
@@ -64,7 +65,6 @@ func (server *FakeServer) Close(t *testing.T) {
 
 func TestConnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	mockStatsd := scopedstatsd.NewMockClient(ctrl)
 	mockDestinationsHash := connect.NewMockDestinationHash(ctrl)
@@ -158,4 +158,66 @@ func TestConnectDialTimeoutExpired(t *testing.T) {
 		context.Background(), "address", mockDestinationsHash)
 	assert.Error(t, err)
 	assert.Equal(t, "context deadline exceeded", err.Error())
+}
+
+func BenchmarkSend(b *testing.B) {
+	ctrl := gomock.NewController(b)
+	mockDestinationsHash := connect.NewMockDestinationHash(ctrl)
+	server := CreateFakeServer(b, ctrl)
+	server.handler.EXPECT().SendMetricsV2(gomock.Any()).Times(1).DoAndReturn(func(
+		connection forwardrpc.Forward_SendMetricsV2Server,
+	) error {
+		server.connectionChannel <- connection
+		<-server.closeConnection
+		connection.SendAndClose(&emptypb.Empty{})
+		return nil
+	})
+	statsd, err := statsd.New("localhost:50000")
+	assert.NoError(b, err)
+
+	connecter := connect.Create(
+		time.Second, logrus.NewEntry(logrus.New()), 1, statsd,
+		100*time.Millisecond)
+	destination, err := connecter.Connect(
+		context.Background(), server.grpcListener.Addr().String(),
+		mockDestinationsHash)
+	assert.NoError(b, err)
+
+	connection := <-server.connectionChannel
+
+	metric := &metricpb.Metric{
+		Name: "metric-name",
+		Tags: []string{"tag1:value1"},
+		Type: metricpb.Type_Counter,
+		Value: &metricpb.Metric_Counter{
+			Counter: &metricpb.CounterValue{
+				Value: 1,
+			},
+		},
+	}
+
+	b.ResetTimer()
+	go func() {
+		for index := 0; index < b.N; index++ {
+			destination.SendChannel() <- connect.SendRequest{
+				Metric: metric,
+			}
+		}
+	}()
+
+	for index := 0; index < b.N; index++ {
+		_, err := connection.Recv()
+		assert.NoError(b, err)
+	}
+	b.StopTimer()
+
+	mockDestinationsHash.EXPECT().RemoveDestination(
+		server.grpcListener.Addr().String())
+	connectionClosed := make(chan struct{})
+	mockDestinationsHash.EXPECT().ConnectionClosed().Do(func() {
+		close(connectionClosed)
+	})
+
+	server.Close(b)
+	<-connectionClosed
 }
