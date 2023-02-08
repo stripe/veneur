@@ -135,8 +135,23 @@ sendLoop:
 	for {
 		select {
 		case request := <-d.sendChannel:
-			bufferTime := time.Now()
+			shouldCalculateMetrics := false
+			select {
+			case <-d.statsTicker.C:
+				shouldCalculateMetrics = true
+			default:
+				// Do nothing.
+			}
+
+			var bufferTime time.Time
+			if shouldCalculateMetrics {
+				bufferTime = time.Now()
+			}
 			err := d.client.Send(request.Metric)
+			var sendTime time.Time
+			if shouldCalculateMetrics {
+				sendTime = time.Now()
+			}
 			if err == io.EOF {
 				d.logger.WithError(err).Debug("failed to forward metric")
 				d.statsd.Count(
@@ -153,10 +168,8 @@ sendLoop:
 					"veneur_proxy.forward.metrics_count", 1,
 					[]string{"error:false"}, 1.0)
 			}
-			sendTime := time.Now()
 
-			select {
-			case <-d.statsTicker.C:
+			if shouldCalculateMetrics {
 				destinationTag := "destination:" + d.address
 				d.statsd.Gauge(
 					"veneur_proxy.forward.buffer_size",
@@ -169,8 +182,6 @@ sendLoop:
 					"veneur_proxy.forward.send_latency_ns",
 					float64(sendTime.Sub(request.Timestamp).Nanoseconds()),
 					[]string{destinationTag}, 1.0)
-			default:
-				// Do nothing.
 			}
 		case <-ctx.Done():
 			break sendLoop
