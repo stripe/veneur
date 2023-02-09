@@ -135,6 +135,8 @@ sendLoop:
 	for {
 		select {
 		case request := <-d.sendChannel:
+
+			// Only collect timing metrics once every `statsInterval`.
 			shouldCalculateMetrics := false
 			select {
 			case <-d.statsTicker.C:
