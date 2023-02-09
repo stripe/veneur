@@ -21,21 +21,23 @@ type Connect interface {
 var _ Connect = &connect{}
 
 type connect struct {
-	dialTimeout time.Duration
-	logger      *logrus.Entry
-	sendBuffer  uint
-	statsd      scopedstatsd.Client
+	dialTimeout   time.Duration
+	logger        *logrus.Entry
+	sendBuffer    uint
+	statsd        scopedstatsd.Client
+	statsInterval time.Duration
 }
 
 func Create(
 	dialTimeout time.Duration, logger *logrus.Entry, sendBuffer uint,
-	statsd scopedstatsd.Client,
+	statsd scopedstatsd.Client, statsInterval time.Duration,
 ) Connect {
 	return &connect{
-		dialTimeout: dialTimeout,
-		logger:      logger,
-		sendBuffer:  sendBuffer,
-		statsd:      statsd,
+		dialTimeout:   dialTimeout,
+		logger:        logger,
+		sendBuffer:    sendBuffer,
+		statsd:        statsd,
+		statsInterval: statsInterval,
 	}
 }
 
@@ -45,7 +47,8 @@ type Destination interface {
 }
 
 type SendRequest struct {
-	Metric *metricpb.Metric
+	Metric    *metricpb.Metric
+	Timestamp time.Time
 }
 
 type DestinationHash interface {
@@ -64,6 +67,7 @@ type destination struct {
 	logger          *logrus.Entry
 	sendChannel     chan SendRequest
 	statsd          scopedstatsd.Client
+	statsTicker     *time.Ticker
 }
 
 func (connect *connect) Connect(
@@ -111,6 +115,7 @@ func (connect *connect) Connect(
 		logger:          logger,
 		sendChannel:     make(chan SendRequest, connect.sendBuffer),
 		statsd:          connect.statsd,
+		statsTicker:     time.NewTicker(connect.statsInterval),
 	}
 
 	go d.sendMetrics(sendContext)
@@ -130,22 +135,62 @@ sendLoop:
 	for {
 		select {
 		case request := <-d.sendChannel:
+
+			// Only collect timing metrics once every `statsInterval`.
+			shouldCalculateMetrics := false
+			select {
+			case <-d.statsTicker.C:
+				shouldCalculateMetrics = true
+			default:
+				// Do nothing.
+			}
+
+			var bufferTime time.Time
+			if shouldCalculateMetrics {
+				bufferTime = time.Now()
+			}
 			err := d.client.Send(request.Metric)
-			if err != nil {
+			var sendTime time.Time
+			if shouldCalculateMetrics {
+				sendTime = time.Now()
+			}
+			if err == io.EOF {
 				d.logger.WithError(err).Debug("failed to forward metric")
 				d.statsd.Count(
 					"veneur_proxy.forward.metrics_count", 1,
-					[]string{"error:true"}, 1.0)
+					[]string{"error:eof"}, 1.0)
+				break sendLoop
+			} else if err != nil {
+				d.logger.WithError(err).Debug("failed to forward metric")
+				d.statsd.Count(
+					"veneur_proxy.forward.metrics_count", 1,
+					[]string{"error:forward"}, 1.0)
 			} else {
 				d.statsd.Count(
 					"veneur_proxy.forward.metrics_count", 1,
 					[]string{"error:false"}, 1.0)
+			}
+
+			if shouldCalculateMetrics {
+				destinationTag := "destination:" + d.address
+				d.statsd.Gauge(
+					"veneur_proxy.forward.buffer_size",
+					float64(len(d.sendChannel)), []string{destinationTag}, 1.0)
+				d.statsd.Gauge(
+					"veneur_proxy.forward.buffer_latency_ns",
+					float64(bufferTime.Sub(request.Timestamp).Nanoseconds()),
+					[]string{destinationTag}, 1.0)
+				d.statsd.Gauge(
+					"veneur_proxy.forward.send_latency_ns",
+					float64(sendTime.Sub(request.Timestamp).Nanoseconds()),
+					[]string{destinationTag}, 1.0)
 			}
 		case <-ctx.Done():
 			break sendLoop
 		}
 	}
 
+	d.statsTicker.Stop()
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()
@@ -156,6 +201,10 @@ sendLoop:
 	if err != nil {
 		d.logger.WithError(err).Error("failed to close connection")
 	}
+
+	d.statsd.Count(
+		"veneur_proxy.forward.metrics_count", int64(len(d.sendChannel)),
+		[]string{"error:dropped"}, 1.0)
 
 	d.destinationHash.ConnectionClosed()
 }

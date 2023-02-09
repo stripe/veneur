@@ -170,15 +170,18 @@ tagLoop:
 		}
 	}()
 
+	sendRequest := connect.SendRequest{
+		Metric:    metric,
+		Timestamp: time.Now(),
+	}
+
 	// sendChannel is a buffered channel with size configured by
 	// `send_buffer_size`. In normal operation, the following write should be
 	// non-blocking; however if the buffer fills up, we increment the counter
 	// with error:enqueue and perform a blocking write.
 	sendChannel := destination.SendChannel()
 	select {
-	case sendChannel <- connect.SendRequest{
-		Metric: metric,
-	}:
+	case sendChannel <- sendRequest:
 		proxy.Statsd.Count(
 			"veneur_proxy.handle.metrics_count",
 			int64(1), []string{"error:false"}, 1.0)
@@ -187,9 +190,7 @@ tagLoop:
 		proxy.Statsd.Count(
 			"veneur_proxy.handle.metrics_count",
 			int64(1), []string{"error:enqueue"}, 1.0)
-		sendChannel <- connect.SendRequest{
-			Metric: metric,
-		}
+		sendChannel <- sendRequest
 		return
 	}
 }
