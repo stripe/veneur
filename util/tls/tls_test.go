@@ -5,11 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/util/tls"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type yamlStruct struct {
-	Tls tls.Tls `yaml:"tls"`
+	Tls *tls.Tls `yaml:"tls"`
 }
 
 func TestGetTlsConfig(t *testing.T) {
@@ -41,9 +41,7 @@ tls:
 
 func TestGetTlsConfigUnset(t *testing.T) {
 	data := yamlStruct{}
-	err := yaml.Unmarshal([]byte(""), &data)
+	err := yaml.Unmarshal([]byte{}, &data)
 	assert.NoError(t, err)
-	tlsConfig, err := data.Tls.GetTlsConfig()
-	assert.NoError(t, err)
-	assert.Nil(t, tlsConfig)
+	assert.Nil(t, data.Tls)
 }

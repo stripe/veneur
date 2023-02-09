@@ -51,7 +51,7 @@ type Config struct {
 	TLSAuthorityCertificate     string              `yaml:"tls_authority_certificate"`
 	TLSCertificate              string              `yaml:"tls_certificate"`
 	TLSKey                      util.StringSecret   `yaml:"tls_key"`
-	Tls                         tls.Tls             `yaml:"tls"`
+	Tls                         *tls.Tls            `yaml:"tls"`
 	TraceMaxLengthBytes         int                 `yaml:"trace_max_length_bytes"`
 	VeneurMetricsAdditionalTags []string            `yaml:"veneur_metrics_additional_tags"`
 	VeneurMetricsScopes         struct {

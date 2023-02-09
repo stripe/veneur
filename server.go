@@ -808,11 +808,13 @@ func (s *Server) Start() {
 	}
 
 	// Initialize a gRPC connection for forwarding
-	tlsConfig, err := s.Config.Tls.GetTlsConfig()
-	if err != nil {
-		s.logger.WithError(err).Fatal("failed to parse tls config")
-	}
-	if tlsConfig != nil {
+	var err error
+	if s.Config.Tls != nil {
+		var tlsConfig *tls.Config
+		tlsConfig, err = s.Config.Tls.GetTlsConfig()
+		if err != nil {
+			s.logger.WithError(err).Fatal("failed to parse tls config")
+		}
 		s.grpcForwardConn, err = grpc.Dial(
 			s.ForwardAddr,
 			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
