@@ -809,7 +809,7 @@ func (s *Server) Start() {
 
 	// Initialize a gRPC connection for forwarding
 	var err error
-	if s.Config.Tls != nil {
+	if s.Config.Tls != nil && s.Config.Tls.CaFile != "" && s.Config.Tls.CertFile != "" && s.Config.Tls.KeyFile != "" {
 		var tlsConfig *tls.Config
 		tlsConfig, err = s.Config.Tls.GetTlsConfig()
 		if err != nil {
