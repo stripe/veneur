@@ -39,6 +39,16 @@ tls:
 	assert.Error(t, err)
 }
 
+func TestGetTlsConfigEmpty(t *testing.T) {
+	yamlFile := []byte(`---
+tls:
+`)
+	data := yamlStruct{}
+	err := yaml.Unmarshal(yamlFile, &data)
+	assert.NoError(t, err)
+	assert.Nil(t, data.Tls)
+}
+
 func TestGetTlsConfigUnset(t *testing.T) {
 	data := yamlStruct{}
 	err := yaml.Unmarshal([]byte{}, &data)
