@@ -53,7 +53,7 @@
   "TLSAuthorityCertificate": "",
   "TLSCertificate": "",
   "TLSKey": "",
-  "Tls": {},
+  "Tls": null,
   "TraceMaxLengthBytes": 0,
   "VeneurMetricsAdditionalTags": null,
   "VeneurMetricsScopes": {
