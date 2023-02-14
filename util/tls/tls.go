@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	CaFile   string `yaml:"ca_file"`
-	CertFile string `yaml:"cert_file"`
-	KeyFile  string `yaml:"key_file"`
+	CaFile     string `yaml:"ca_file"`
+	CertFile   string `yaml:"cert_file"`
+	KeyFile    string `yaml:"key_file"`
+	ServerName string `yaml:"server_name"`
 }
 
 type Tls struct {
@@ -60,5 +61,6 @@ func (config *Tls) GetTlsConfig() (*tls.Config, error) {
 	return &tls.Config{
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      caCertPool,
+		ServerName:   config.ServerName,
 	}, nil
 }
