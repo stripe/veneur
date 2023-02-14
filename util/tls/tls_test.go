@@ -18,6 +18,7 @@ tls:
   ca_file: "../../testdata/cacert.pem"
   cert_file: "../../testdata/servercert.pem"
   key_file:  "../../testdata/serverkey.pem"
+  server_name: "FooBarSrv"
 `)
 	data := yamlStruct{}
 	err := yaml.Unmarshal(yamlFile, &data)
@@ -26,6 +27,21 @@ tls:
 	assert.NoError(t, err)
 	assert.NotNil(t, tlsConfig)
 	assert.Len(t, tlsConfig.Certificates, 1)
+	assert.NotEqualValues(t, tlsConfig.ServerName, "")
+}
+
+func TestGetTlsConfigNoServerName(t *testing.T) {
+	yamlFile := []byte(`---
+tls:
+  ca_file: "../../testdata/cacert.pem"
+  cert_file: "../../testdata/servercert.pem"
+  key_file:  "../../testdata/serverkey.pem"
+`)
+	data := yamlStruct{}
+	err := yaml.Unmarshal(yamlFile, &data)
+	assert.NoError(t, err)
+	tlsConfig, err := data.Tls.GetTlsConfig()
+	assert.EqualValues(t, tlsConfig.ServerName, "")
 }
 
 func TestGetTlsConfigMissingField(t *testing.T) {
