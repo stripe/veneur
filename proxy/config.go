@@ -39,5 +39,5 @@ type Config struct {
 		ChannelBufferSize   int           `yaml:"channel_buffer_size"`
 		MessagesPerPayload  int           `yaml:"messages_per_payload"`
 	} `yaml:"statsd"`
-	Tls tls.Tls `yaml:"tls"`
+	Tls *tls.Tls `yaml:"tls"`
 }

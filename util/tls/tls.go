@@ -8,25 +8,20 @@ import (
 )
 
 type Config struct {
-	CaFile   string `yaml:"ca_file"`
-	CertFile string `yaml:"cert_file"`
-	KeyFile  string `yaml:"key_file"`
+	CaFile     string `yaml:"ca_file"`
+	CertFile   string `yaml:"cert_file"`
+	KeyFile    string `yaml:"key_file"`
+	ServerName string `yaml:"server_name"`
 }
 
 type Tls struct {
-	*Config
+	Config
 }
 
 func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	err := unmarshal(&config.Config)
 	if err != nil {
 		return err
-	}
-
-	if config.CaFile == "" &&
-		config.CertFile == "" &&
-		config.KeyFile == "" {
-		return nil
 	}
 
 	if config.CaFile == "" ||
@@ -39,10 +34,6 @@ func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (config *Tls) GetTlsConfig() (*tls.Config, error) {
-	if config.Config == nil {
-		return nil, nil
-	}
-
 	certFile, err := os.ReadFile(config.CertFile)
 	if err != nil {
 		return nil, err
@@ -70,5 +61,6 @@ func (config *Tls) GetTlsConfig() (*tls.Config, error) {
 	return &tls.Config{
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      caCertPool,
+		ServerName:   config.ServerName,
 	}, nil
 }

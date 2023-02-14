@@ -34,8 +34,8 @@ func CreateTestServer(
 	mockDestinations := destinations.NewMockDestinations(ctrl)
 	mockDiscoverer := discovery.NewMockDiscoverer(ctrl)
 
-	config.Tls = tls.Tls{
-		Config: &tls.Config{
+	config.Tls = &tls.Tls{
+		Config: tls.Config{
 			CaFile:   "../testdata/cacert.pem",
 			CertFile: "../testdata/servercert.pem",
 			KeyFile:  "../testdata/serverkey.pem",

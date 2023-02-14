@@ -112,7 +112,8 @@ func main() {
 		Config: config,
 		Destinations: destinations.Create(
 			connect.Create(
-				config.DialTimeout, loggerEntry, config.SendBufferSize, statsClient),
+				config.DialTimeout, loggerEntry, config.SendBufferSize, statsClient,
+				config.Statsd.AggregationInterval),
 			loggerEntry),
 		Discoverer:         discoverer,
 		HealthcheckContext: ctx,
