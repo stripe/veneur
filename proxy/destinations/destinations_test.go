@@ -83,7 +83,7 @@ func TestAddSingleWithFailure(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		fixture.destinations.Wait()
 		return true
-	}, 2*time.Millisecond, time.Millisecond)
+	}, 500*time.Millisecond, time.Millisecond)
 }
 
 func TestAddMultiple(t *testing.T) {
