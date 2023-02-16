@@ -129,7 +129,8 @@ func (connect *connect) Connect(
 }
 
 // Send metrics to the destination. Once the context expires, remove the the
-// destination and close the connection.
+// destination and close the connection, and drain any remaining entries in
+// d.sendChannel.
 func (d *destination) sendMetrics(ctx context.Context) {
 sendLoop:
 	for {
@@ -191,6 +192,9 @@ sendLoop:
 	}
 
 	d.statsTicker.Stop()
+
+	// Remove the destination from the consistent hash such that no more metrics
+	// can be written to the channel.
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()
@@ -206,6 +210,14 @@ sendLoop:
 		"veneur_proxy.forward.metrics_count", int64(len(d.sendChannel)),
 		[]string{"error:dropped"}, 1.0)
 
+	// Drain d.sendChannel such that any goroutines blocked on writing to this
+	// channel are released.
+	for range d.sendChannel {
+		// Do nothing.
+	}
+
+	// Notify the hash that resources for this connection have been cleaned up
+	// so it can block until all connections are done cleaning up on exit.
 	d.destinationHash.ConnectionClosed()
 }
 
