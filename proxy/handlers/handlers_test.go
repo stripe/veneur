@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -139,19 +138,16 @@ func TestProxyJson(t *testing.T) {
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
 		Return(fixture.Destination, nil)
-	sendChannel := make(chan connect.SendRequest)
+	sendChannel := make(chan connect.SendRequest, 1)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(
 		"GET", "/import", strings.NewReader(metricsJson))
-	handleJsonMetricsChannel := make(chan struct{})
-	go func() {
-		fixture.Handlers.HandleJsonMetrics(recorder, request)
-		close(handleJsonMetricsChannel)
-	}()
+	fixture.Handlers.HandleJsonMetrics(recorder, request)
 	sendRequest := <-sendChannel
-	<-handleJsonMetricsChannel
 
 	assert.Equal(t, &metricpb.Metric{
 		Name: "metric-name",
@@ -249,22 +245,19 @@ func TestProxyGrpcSingle(t *testing.T) {
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
 		Return(fixture.Destination, nil)
-	sendChannel := make(chan connect.SendRequest)
+	sendChannel := make(chan connect.SendRequest, 1)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
-	sendMetricsChannel := make(chan error)
-	go func() {
-		_, err := fixture.Handlers.SendMetrics(
-			context.Background(), &forwardrpc.MetricList{
-				Metrics: []*metricpb.Metric{metric},
-			})
-		sendMetricsChannel <- err
-	}()
-	sendRequest := <-sendChannel
-	err := <-sendMetricsChannel
-
-	assert.Equal(t, metric, sendRequest.Metric)
+	_, err := fixture.Handlers.SendMetrics(
+		context.Background(), &forwardrpc.MetricList{
+			Metrics: []*metricpb.Metric{metric},
+		})
 	assert.NoError(t, err)
+
+	sendRequest := <-sendChannel
+	assert.Equal(t, metric, sendRequest.Metric)
 }
 
 func TestProxyGrpcStream(t *testing.T) {
@@ -291,6 +284,8 @@ func TestProxyGrpcStream(t *testing.T) {
 		Return(fixture.Destination, nil)
 	sendChannel := make(chan connect.SendRequest)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
@@ -333,23 +328,21 @@ func TestProxyGrpcStreamError(t *testing.T) {
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
 		Return(fixture.Destination, nil)
-	sendChannel := make(chan connect.SendRequest)
+	sendChannel := make(chan connect.SendRequest, 1)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
 	mockServer.EXPECT().Recv().Times(1).Return(nil, errors.New("stream error"))
 	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
-	sendMetricsChannel := make(chan error)
-	go func() {
-		sendMetricsChannel <- fixture.Handlers.SendMetricsV2(mockServer)
-	}()
-	sendRequest := <-sendChannel
-	err := <-sendMetricsChannel
-
-	assert.Equal(t, metric, sendRequest.Metric)
+	err := fixture.Handlers.SendMetricsV2(mockServer)
 	assert.Error(t, err)
+
+	sendRequest := <-sendChannel
+	assert.Equal(t, metric, sendRequest.Metric)
 }
 
 func TestProxyGrpcStreamIgnoreTags(t *testing.T) {
@@ -372,23 +365,21 @@ func TestProxyGrpcStreamIgnoreTags(t *testing.T) {
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag2:value2").
 		Return(fixture.Destination, nil)
-	sendChannel := make(chan connect.SendRequest)
+	sendChannel := make(chan connect.SendRequest, 1)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
 	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
 	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
-	sendMetricsChannel := make(chan error)
-	go func() {
-		sendMetricsChannel <- fixture.Handlers.SendMetricsV2(mockServer)
-	}()
-	sendRequest := <-sendChannel
-	err := <-sendMetricsChannel
-
-	assert.Equal(t, metric, sendRequest.Metric)
+	err := fixture.Handlers.SendMetricsV2(mockServer)
 	assert.NoError(t, err)
+
+	sendRequest := <-sendChannel
+	assert.Equal(t, metric, sendRequest.Metric)
 }
 
 func TestNoDestination(t *testing.T) {
@@ -440,36 +431,81 @@ func TestChannelBufferFull(t *testing.T) {
 		int64(1), []string{"protocol:grpc-stream"}, 1.0)
 	metricsEnqueuedChannel := make(chan struct{})
 	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.handle.metrics_count",
-		int64(1), []string{"error:enqueue"}, 1.0).
+		"veneur_proxy.handle.enqueue",
+		int64(1), []string{"destination:destination-address"}, 1.0).
 		Do(func(
 			string, int64, []string, float64,
 		) {
 			close(metricsEnqueuedChannel)
 		})
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.handle.metrics_count",
+		int64(1), []string{"error:false"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
 		Return(fixture.Destination, nil)
+	fixture.Destination.EXPECT().Address().Return("destination-address")
 	sendChannel := make(chan connect.SendRequest)
 	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
 
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
 	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
 	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(1)
+	sendErrorChannel := make(chan error)
 	go func() {
-		defer waitGroup.Done()
-		<-metricsEnqueuedChannel
-		actualMetric := <-sendChannel
-		assert.Equal(t, metric, actualMetric.Metric)
+		sendErrorChannel <- fixture.Handlers.SendMetricsV2(mockServer)
 	}()
+	<-metricsEnqueuedChannel
+
+	sendRequest := <-sendChannel
+	assert.Equal(t, metric, sendRequest.Metric)
+
+	err := <-sendErrorChannel
+	assert.NoError(t, err)
+}
+
+func TestDestinationClosed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
+
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.ingest.request_count",
+		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.request_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.ingest.metrics_count",
+		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.handle.enqueue",
+		int64(1), []string{"destination:destination-address"}, 1.0)
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.handle.metrics_count",
+		int64(1), []string{"error:dropped"}, 1.0)
+
+	fixture.Destinations.EXPECT().
+		Get("metric-namecountertag1:value1,tag2:value2").
+		Return(fixture.Destination, nil)
+	fixture.Destination.EXPECT().Address().Return("destination-address")
+	sendChannel := make(chan connect.SendRequest)
+	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+	closedChannel := make(chan struct{})
+	close(closedChannel)
+	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
+
+	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
+	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
+	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
+	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
 	err := fixture.Handlers.SendMetricsV2(mockServer)
 	assert.NoError(t, err)
-
-	waitGroup.Wait()
 }

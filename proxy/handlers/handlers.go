@@ -180,17 +180,28 @@ tagLoop:
 	// non-blocking; however if the buffer fills up, we increment the counter
 	// with error:enqueue and perform a blocking write.
 	sendChannel := destination.SendChannel()
+	closedChannel := destination.ClosedChannel()
 	select {
-	case sendChannel <- sendRequest:
+	case sendChannel <- sendRequest: // Attempt a non-blocking write.
 		proxy.Statsd.Count(
 			"veneur_proxy.handle.metrics_count",
 			int64(1), []string{"error:false"}, 1.0)
 		return
 	default:
 		proxy.Statsd.Count(
-			"veneur_proxy.handle.metrics_count",
-			int64(1), []string{"error:enqueue"}, 1.0)
-		sendChannel <- sendRequest
-		return
+			"veneur_proxy.handle.enqueue",
+			int64(1), []string{"destination:" + destination.Address()}, 1.0)
+		select {
+		case sendChannel <- sendRequest: // Perform a blocking write.
+			proxy.Statsd.Count(
+				"veneur_proxy.handle.metrics_count",
+				int64(1), []string{"error:false"}, 1.0)
+			return
+		case <-closedChannel: // Do not block if the destination is closed.
+			proxy.Statsd.Count(
+				"veneur_proxy.handle.metrics_count",
+				int64(1), []string{"error:dropped"}, 1.0)
+			return
+		}
 	}
 }

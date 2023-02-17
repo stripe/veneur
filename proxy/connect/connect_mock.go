@@ -72,6 +72,20 @@ func (m *MockDestination) EXPECT() *MockDestinationMockRecorder {
 	return m.recorder
 }
 
+// Address mocks base method.
+func (m *MockDestination) Address() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Address")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Address indicates an expected call of Address.
+func (mr *MockDestinationMockRecorder) Address() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Address", reflect.TypeOf((*MockDestination)(nil).Address))
+}
+
 // Close mocks base method.
 func (m *MockDestination) Close() {
 	m.ctrl.T.Helper()
@@ -82,6 +96,20 @@ func (m *MockDestination) Close() {
 func (mr *MockDestinationMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDestination)(nil).Close))
+}
+
+// ClosedChannel mocks base method.
+func (m *MockDestination) ClosedChannel() <-chan struct{} {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClosedChannel")
+	ret0, _ := ret[0].(<-chan struct{})
+	return ret0
+}
+
+// ClosedChannel indicates an expected call of ClosedChannel.
+func (mr *MockDestinationMockRecorder) ClosedChannel() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClosedChannel", reflect.TypeOf((*MockDestination)(nil).ClosedChannel))
 }
 
 // SendChannel mocks base method.
