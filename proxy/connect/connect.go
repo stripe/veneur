@@ -42,7 +42,9 @@ func Create(
 }
 
 type Destination interface {
+	Address() string
 	SendChannel() chan<- SendRequest
+	ClosedChannel() <-chan struct{}
 	Close()
 }
 
@@ -62,6 +64,7 @@ type destination struct {
 	address         string
 	cancel          func()
 	client          forwardrpc.Forward_SendMetricsV2Client
+	closedChannel   chan struct{}
 	connection      *grpc.ClientConn
 	destinationHash DestinationHash
 	logger          *logrus.Entry
@@ -110,6 +113,7 @@ func (connect *connect) Connect(
 		address:         address,
 		cancel:          cancel,
 		client:          client,
+		closedChannel:   make(chan struct{}),
 		connection:      connection,
 		destinationHash: destinationHash,
 		logger:          logger,
@@ -126,6 +130,10 @@ func (connect *connect) Connect(
 	d.statsd.Count(
 		"veneur_proxy.forward.connect", 1, []string{"status:success"}, 1.0)
 	return &d, nil
+}
+
+func (d *destination) Address() string {
+	return d.address
 }
 
 // Send metrics to the destination. Once the context expires, remove the the
@@ -190,8 +198,15 @@ sendLoop:
 		}
 	}
 
-	d.statsTicker.Stop()
+	// Signal that this destination should no longer be written to.
+	close(d.closedChannel)
+
+	// Remove the destination from the consistent hash such that no more metrics
+	// can be written to the channel. This call blocks until the destination
+	// has been successfully removed.
 	d.destinationHash.RemoveDestination(d.address)
+
+	d.statsTicker.Stop()
 
 	err := d.client.CloseSend()
 	if err != nil {
@@ -206,6 +221,8 @@ sendLoop:
 		"veneur_proxy.forward.metrics_count", int64(len(d.sendChannel)),
 		[]string{"error:dropped"}, 1.0)
 
+	// Notify the hash that resources for this connection have been cleaned up
+	// so it can block until all connections are done cleaning up on exit.
 	d.destinationHash.ConnectionClosed()
 }
 
@@ -227,8 +244,15 @@ func (d *destination) listenForClose() {
 	d.cancel()
 }
 
+// The channel in which metrics should be written.
 func (d *destination) SendChannel() chan<- SendRequest {
 	return d.sendChannel
+}
+
+// The channel indicating the connection has closed. If this channel is closed
+// metrics should not be written to the channel returned by SendChannel.
+func (d *destination) ClosedChannel() <-chan struct{} {
+	return d.closedChannel
 }
 
 func (d *destination) Close() {
