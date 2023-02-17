@@ -198,13 +198,13 @@ sendLoop:
 		}
 	}
 
-	// Signal that this destination should no longer be written to.
-	close(d.closedChannel)
-
 	// Remove the destination from the consistent hash such that no more metrics
 	// can be written to the channel. This call blocks until the destination
 	// has been successfully removed.
 	d.destinationHash.RemoveDestination(d.address)
+
+	// Signal that this destination should no longer be written to.
+	close(d.closedChannel)
 
 	d.statsTicker.Stop()
 
