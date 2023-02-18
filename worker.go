@@ -248,12 +248,22 @@ func (wm WorkerMetrics) appendExportedMetric(
 	return append(res, m)
 }
 
+// WorkerOpts contain all the options available to NewWorker.
+// The zero value should be suitable for use in tests.
+type WorkerOpts struct {
+	IsLocal               bool
+	CountUniqueTimeseries bool
+	TraceClient           *trace.Client
+	Logger                *logrus.Logger
+	Stats                 scopedstatsd.Client
+}
+
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(id int, opts WorkerOpts) *Worker {
 	return &Worker{
 		id:                    id,
-		isLocal:               isLocal,
-		countUniqueTimeseries: countUniqueTimeseries,
+		isLocal:               opts.IsLocal,
+		countUniqueTimeseries: opts.CountUniqueTimeseries,
 		uniqueMTS:             hyperloglog.New(),
 		uniqueMTSMtx:          &sync.RWMutex{},
 		PacketChan:            make(chan samplers.UDPMetric, 32),
@@ -262,10 +272,10 @@ func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Clien
 		processed:             0,
 		imported:              0,
 		mutex:                 &sync.Mutex{},
-		traceClient:           cl,
-		logger:                logger,
+		traceClient:           opts.TraceClient,
+		logger:                opts.Logger,
 		wm:                    NewWorkerMetrics(),
-		stats:                 scopedstatsd.Ensure(stats),
+		stats:                 scopedstatsd.Ensure(opts.Stats),
 	}
 }
 

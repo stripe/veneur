@@ -547,7 +547,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// Use the pre-allocated Workers slice to know how many to start.
 	logger.WithField("number", len(ret.Workers)).Info("Preparing workers")
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, logger, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, WorkerOpts{
+			IsLocal:               ret.IsLocal(),
+			CountUniqueTimeseries: ret.CountUniqueTimeseries,
+			TraceClient:           ret.TraceClient,
+			Logger:                ret.logger.Logger,
+			Stats:                 ret.Statsd,
+		})
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
