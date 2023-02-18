@@ -22,12 +22,13 @@ import (
 )
 
 const (
-	CounterTypeName   = "counter"
-	GaugeTypeName     = "gauge"
-	HistogramTypeName = "histogram"
-	SetTypeName       = "set"
-	TimerTypeName     = "timer"
-	StatusTypeName    = "status"
+	CounterTypeName      = "counter"
+	GaugeTypeName        = "gauge"
+	HistogramTypeName    = "histogram"
+	SetTypeName          = "set"
+	TimerTypeName        = "timer"
+	StatusTypeName       = "status"
+	DefaultWorkerBufSize = 32
 )
 
 // Worker is the doodad that does work.
@@ -256,18 +257,23 @@ type WorkerOpts struct {
 	TraceClient           *trace.Client
 	Logger                *logrus.Logger
 	Stats                 scopedstatsd.Client
+	BufSize               int
 }
 
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, opts WorkerOpts) *Worker {
+	if opts.BufSize == 0 {
+		opts.BufSize = DefaultWorkerBufSize
+	}
+
 	return &Worker{
 		id:                    id,
 		isLocal:               opts.IsLocal,
 		countUniqueTimeseries: opts.CountUniqueTimeseries,
 		uniqueMTS:             hyperloglog.New(),
 		uniqueMTSMtx:          &sync.RWMutex{},
-		PacketChan:            make(chan samplers.UDPMetric, 32),
-		ImportMetricChan:      make(chan *metricpb.Metric, 32),
+		PacketChan:            make(chan samplers.UDPMetric, opts.BufSize),
+		ImportMetricChan:      make(chan *metricpb.Metric, opts.BufSize),
 		QuitChan:              make(chan struct{}),
 		processed:             0,
 		imported:              0,
