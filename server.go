@@ -553,6 +553,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			TraceClient:           ret.TraceClient,
 			Logger:                ret.logger.Logger,
 			Stats:                 ret.Statsd,
+			BufSize:               conf.WorkerBufSize,
 		})
 		// do not close over loop index
 		go func(w *Worker) {

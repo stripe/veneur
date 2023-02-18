@@ -61,6 +61,7 @@ type Config struct {
 		Set       string `yaml:"set"`
 		Status    string `yaml:"status"`
 	} `yaml:"veneur_metrics_scopes"`
+	WorkerBufSize int `yaml:"worker_buf_size"`
 }
 
 type Features struct {
@@ -109,6 +110,7 @@ var defaultConfig = Config{
 	MetricMaxLength:     4096,
 	ReadBufferSizeBytes: 1048576 * 2, // 2 MiB
 	SpanChannelCapacity: 100,
+	WorkerBufSize:       32,
 }
 
 func (c *Config) ApplyDefaults() {
