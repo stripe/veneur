@@ -479,7 +479,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 		} else {
 			v, err := strconv.ParseFloat(string(value), 64)
 			if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-				return fmt.Errorf("Invalid number for metric value: %s", valueChunk)
+				return fmt.Errorf("Invalid number for metric value: %s", string(value))
 			}
 			ret.Value = v
 		}
