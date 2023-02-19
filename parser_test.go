@@ -1096,6 +1096,7 @@ func BenchmarkParseMetric(b *testing.B) {
 				metricBytes := []byte(statsd)
 				parser := samplers.NewParser(it.metricTags)
 				b.Run(benchName, func(b *testing.B) {
+					b.ReportAllocs()
 					for n := 0; n < b.N; n++ {
 						m, err := parser.ParseMetric(metricBytes)
 						if err != nil {
