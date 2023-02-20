@@ -855,9 +855,9 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 
 func TestInvalidPackets(t *testing.T) {
 	table := map[string]string{
-		"foo":                                "1 colon",
+		"foo":                                "Invalid metric packet, need at least 1 pipe for type",
 		"foo:1":                              "1 pipe",
-		"foo:1||":                            "metric type",
+		"foo:1||":                            "Invalid metric packet, metric type not specified",
 		"foo:|c|":                            "Invalid metric packet, empty string after/between pipes",
 		"this_is_a_bad_metric:nan|g|#shell":  "Invalid number for metric value",
 		"this_is_a_bad_metric:NaN|g|#shell":  "Invalid number for metric value",

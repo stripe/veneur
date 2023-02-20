@@ -350,30 +350,35 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 	metric := &UDPMetric{
 		SampleRate: 1.0,
 	}
-	pipeSplitter := NewSplitBytes(packet, '|')
-	pipeSplitter.Next() // first split always succeeds, since there are at least zero pipes
+	typeStart := bytes.IndexByte(packet, '|')
+	if typeStart < 0 {
+		return errors.New("Invalid metric packet, need at least 1 pipe for type")
+	}
 
-	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
-	if startingColon == -1 {
+	valueStart := bytes.IndexByte(packet[:typeStart], ':')
+	if valueStart == -1 {
 		return errors.New("Invalid metric packet, need at least 1 colon")
 	}
-	nameChunk := pipeSplitter.Chunk()[:startingColon]
-	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
+	nameChunk := packet[:valueStart]
+	valueChunk := packet[valueStart+1:typeStart]
+
 	if len(nameChunk) == 0 {
 		return errors.New("Invalid metric packet, name cannot be empty")
 	}
 
-	if !pipeSplitter.Next() {
-		return errors.New("Invalid metric packet, need at least 1 pipe for type")
+	metric.Name = string(nameChunk)
+
+	tagsStart := len(packet)
+	if idx := bytes.IndexByte(packet[typeStart+1:], '|'); idx > -1 {
+		tagsStart = typeStart + 1 + idx
 	}
-	typeChunk := pipeSplitter.Chunk()
+	typeChunk := packet[typeStart+1:tagsStart]
+
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
 		return errors.New("Invalid metric packet, metric type not specified")
 	}
-
-	metric.Name = string(nameChunk)
 
 	// Decide on a type
 	switch typeChunk[0] {
@@ -394,19 +399,27 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 	// each of these sections can only appear once in the packet
 	foundSampleRate := false
 	var tempTags []string
-	for pipeSplitter.Next() {
-		if len(pipeSplitter.Chunk()) == 0 {
+	for tagsStart < len(packet) {
+		tagsNext := len(packet)
+		idx := bytes.IndexByte(packet[tagsStart+1:], '|')
+		if idx > -1 {
+			tagsNext = tagsStart + 1 + idx
+		}
+		chunk := packet[tagsStart+1:tagsNext]
+		tagsStart = tagsNext
+
+		if len(chunk) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
-			return errors.New("Invalid metric packet, empty string after/between pipes")
+			return fmt.Errorf("Invalid metric packet, empty string after/between pipes")
 		}
-		switch pipeSplitter.Chunk()[0] {
+		switch chunk[0] {
 		case '@':
 			if foundSampleRate {
 				return errors.New("Invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
-			sr := string(pipeSplitter.Chunk()[1:])
+			sr := string(chunk[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
 				return fmt.Errorf("Invalid float for sample rate: %s", sr)
@@ -425,7 +438,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
 			// see worker.go line 273
-			tempTags = strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
+			tempTags = strings.Split(string(chunk[1:]), ",")
 			for i, tag := range tempTags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
@@ -442,7 +455,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 				}
 			}
 		default:
-			return fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
+			return fmt.Errorf("Invalid metric packet, contains unknown section %q", chunk)
 		}
 	}
 
