@@ -13,7 +13,6 @@ import (
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/proxy/connect"
 	"github.com/stripe/veneur/v14/proxy/destinations"
-	"github.com/stripe/veneur/v14/proxy/json"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/util/matcher"
@@ -35,48 +34,6 @@ func (proxy *Handlers) HandleHealthcheck(
 		writer.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		writer.WriteHeader(http.StatusNoContent)
-	}
-}
-
-// Receives and handles metrics via HTTP requests.
-func (proxy *Handlers) HandleJsonMetrics(
-	writer http.ResponseWriter, request *http.Request,
-) {
-	proxy.Statsd.Count(
-		"veneur_proxy.ingest.request_count", 1,
-		[]string{"protocol:http"}, 1.0)
-	requestStart := time.Now()
-	defer proxy.Statsd.Timing(
-		"veneur_proxy.ingest.request_latency_ms", time.Since(requestStart),
-		[]string{"protocol:http"}, 1.0)
-
-	jsonMetrics, err := json.ParseRequest(request)
-	if err != nil {
-		proxy.Logger.WithError(err.Err).Debug(err.Message)
-		http.Error(writer, fmt.Sprintf("%s: %v", err.Message, err.Err), err.Status)
-		proxy.Statsd.Count(
-			"veneur_proxy.ingest.request_error_count", 1,
-			[]string{"protocol:http", fmt.Sprintf("status:%s", err.Tag)}, 1.0)
-		return
-	}
-
-	proxy.Statsd.Count(
-		"veneur_proxy.ingest.metrics_count",
-		int64(len(jsonMetrics)), []string{"protocol:http"}, 1.0)
-	convertErrorCount := 0
-	for _, jsonMetric := range jsonMetrics {
-		metric, err := json.ConvertJsonMetric(&jsonMetric)
-		if err != nil {
-			proxy.Logger.Debugf("error converting metric: %v", err)
-			convertErrorCount += 1
-			continue
-		}
-		proxy.handleMetric(metric)
-	}
-	if convertErrorCount > 0 {
-		proxy.Statsd.Count(
-			"veneur_proxy.handle.metrics_count",
-			int64(convertErrorCount), []string{"error:json_convert"}, 1.0)
 	}
 }
 
