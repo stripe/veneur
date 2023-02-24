@@ -1,8 +1,8 @@
 package api
 
-// QueryDatacenterOptions sets options about how we fail over if there are no
+// QueryFailoverOptions sets options about how we fail over if there are no
 // healthy nodes in the local datacenter.
-type QueryDatacenterOptions struct {
+type QueryFailoverOptions struct {
 	// NearestN is set to the number of remote datacenters to try, based on
 	// network coordinates.
 	NearestN int
@@ -11,6 +11,21 @@ type QueryDatacenterOptions struct {
 	// never try a datacenter multiple times, so those are subtracted from
 	// this list before proceeding.
 	Datacenters []string
+
+	// Targets is a fixed list of datacenters and peers to try. This field cannot
+	// be populated with NearestN or Datacenters.
+	Targets []QueryFailoverTarget
+}
+
+// Deprecated: use QueryFailoverOptions instead.
+type QueryDatacenterOptions = QueryFailoverOptions
+
+type QueryFailoverTarget struct {
+	// Peer specifies a peer to try during failover.
+	Peer string
+
+	// Datacenter specifies a datacenter to try during failover.
+	Datacenter string
 }
 
 // QueryDNSOptions controls settings when query results are served over DNS.
@@ -25,6 +40,9 @@ type ServiceQuery struct {
 	// Service is the service to query.
 	Service string
 
+	// Namespace of the service to query
+	Namespace string `json:",omitempty"`
+
 	// Near allows baking in the name of a node to automatically distance-
 	// sort from. The magic "_agent" value is supported, which sorts near
 	// the agent which initiated the request by default.
@@ -32,7 +50,7 @@ type ServiceQuery struct {
 
 	// Failover controls what we do if there are no healthy nodes in the
 	// local datacenter.
-	Failover QueryDatacenterOptions
+	Failover QueryFailoverOptions
 
 	// IgnoreCheckIDs is an optional list of health check IDs to ignore when
 	// considering which nodes are healthy. It is useful as an emergency measure
@@ -119,6 +137,9 @@ type PreparedQueryExecuteResponse struct {
 	// Service is the service that was queried.
 	Service string
 
+	// Namespace of the service that was queried
+	Namespace string `json:",omitempty"`
+
 	// Nodes has the nodes that were output by the query.
 	Nodes []ServiceEntry
 
@@ -148,11 +169,14 @@ func (c *PreparedQuery) Create(query *PreparedQueryDefinition, q *WriteOptions) 
 	r := c.c.newRequest("POST", "/v1/query")
 	r.setWriteOptions(q)
 	r.obj = query
-	rtt, resp, err := requireOK(c.c.doRequest(r))
+	rtt, resp, err := c.c.doRequest(r)
 	if err != nil {
 		return "", nil, err
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(resp)
+	if err := requireOK(resp); err != nil {
+		return "", nil, err
+	}
 
 	wm := &WriteMeta{}
 	wm.RequestTime = rtt
@@ -194,11 +218,14 @@ func (c *PreparedQuery) Get(queryID string, q *QueryOptions) ([]*PreparedQueryDe
 func (c *PreparedQuery) Delete(queryID string, q *WriteOptions) (*WriteMeta, error) {
 	r := c.c.newRequest("DELETE", "/v1/query/"+queryID)
 	r.setWriteOptions(q)
-	rtt, resp, err := requireOK(c.c.doRequest(r))
+	rtt, resp, err := c.c.doRequest(r)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(resp)
+	if err := requireOK(resp); err != nil {
+		return nil, err
+	}
 
 	wm := &WriteMeta{}
 	wm.RequestTime = rtt

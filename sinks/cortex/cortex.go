@@ -332,7 +332,7 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
 func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
-	var ts []*prompb.TimeSeries
+	var ts []prompb.TimeSeries
 	for _, metric := range metrics {
 		if metric.Type == samplers.CounterMetric && s.convertCountersToMonotonic {
 			s.addToMonotonicCounter(metric)
@@ -390,9 +390,9 @@ func (s *CortexMetricSink) SetExcludedTags(excludes []string) {
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}, host string) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}, host string) prompb.TimeSeries {
 	var ts prompb.TimeSeries
-	ts.Labels = []*prompb.Label{{
+	ts.Labels = []prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
 	}}
 
@@ -416,7 +416,7 @@ func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]str
 	}
 
 	for k, v := range sanitisedTags {
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
+		ts.Labels = append(ts.Labels, prompb.Label{Name: k, Value: v})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
@@ -426,7 +426,7 @@ func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]str
 		Value: metric.Value, Timestamp: metric.Timestamp * 1000,
 	}}
 
-	return &ts
+	return ts
 }
 
 // sanitise replaces all characters which are not in the set [a-zA-Z0-9_:]

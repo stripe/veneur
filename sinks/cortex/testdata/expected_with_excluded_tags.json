@@ -16,7 +16,9 @@
           "value": 100,
           "timestamp": 1000
         }
-      ]
+      ],
+      "exemplars": null,
+      "histograms": null
     },
     {
       "labels": [
@@ -30,7 +32,9 @@
           "value": 2,
           "timestamp": 1000
         }
-      ]
+      ],
+      "exemplars": null,
+      "histograms": null
     },
     {
       "labels": [
@@ -44,7 +48,10 @@
           "value": 5,
           "timestamp": 1000
         }
-      ]
+      ],
+      "exemplars": null,
+      "histograms": null
     }
-  ]
+  ],
+  "metadata": null
 }
