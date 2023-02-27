@@ -360,7 +360,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 		return errors.New("Invalid metric packet, need at least 1 colon")
 	}
 	nameChunk := packet[:valueStart]
-	valueChunk := packet[valueStart+1:typeStart]
+	valueChunk := packet[valueStart+1 : typeStart]
 
 	if len(nameChunk) == 0 {
 		return errors.New("Invalid metric packet, name cannot be empty")
@@ -372,7 +372,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 	if idx := bytes.IndexByte(packet[typeStart+1:], '|'); idx > -1 {
 		tagsStart = typeStart + 1 + idx
 	}
-	typeChunk := packet[typeStart+1:tagsStart]
+	typeChunk := packet[typeStart+1 : tagsStart]
 
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
@@ -405,7 +405,7 @@ func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
 		if idx > -1 {
 			tagsNext = tagsStart + 1 + idx
 		}
-		chunk := packet[tagsStart+1:tagsNext]
+		chunk := packet[tagsStart+1 : tagsNext]
 		tagsStart = tagsNext
 
 		if len(chunk) == 0 {

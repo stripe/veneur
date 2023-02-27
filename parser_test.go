@@ -1135,7 +1135,7 @@ func BenchmarkParseMetric(b *testing.B) {
 				b.Run(benchName, func(b *testing.B) {
 					b.ReportAllocs()
 					for n := 0; n < b.N; n++ {
-						err := parser.ParseMetric(metricBytes, func(m *samplers.UDPMetric) {total += m.Digest})
+						err := parser.ParseMetric(metricBytes, func(m *samplers.UDPMetric) { total += m.Digest })
 						if err != nil {
 							b.Fatal(err)
 						}
