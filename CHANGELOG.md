@@ -9,6 +9,7 @@
 * Option to flush sinks on shutdown. Thanks, [csolidum](https://github.com/csolidum)!
 * `trace.StartTrace` and `trace.StartChildSpan` now scale better across multiple goroutines.  Thanks [bpowers](https://github.com/bpowers)
 * Support for mTLS in `veneur-proxy`. Thanks [arnavdugar](https://github.com/arnavdugar)
+* Support for [extended clientside aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#client-side-aggregation). Thanks, [praboud-stripe](https://github.com/praboud-stripe)!
 
 ## Updated
 * Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
