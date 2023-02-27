@@ -115,7 +115,6 @@ func Create(params *CreateParams) (*Proxy, error) {
 
 	params.HttpHandler.HandleFunc(
 		"/healthcheck", proxy.handlers.HandleHealthcheck)
-	params.HttpHandler.HandleFunc("/import", proxy.handlers.HandleJsonMetrics)
 	forwardrpc.RegisterForwardServer(proxy.grpcServer, proxy.handlers)
 	forwardrpc.RegisterForwardServer(proxy.grpcTlsServer, proxy.handlers)
 

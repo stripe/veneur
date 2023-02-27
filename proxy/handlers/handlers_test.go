@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -112,103 +111,6 @@ func TestHealthcheckSuccess(t *testing.T) {
 	fixture.Handlers.HandleHealthcheck(recorder, request)
 
 	assert.Equal(t, http.StatusNoContent, recorder.Result().StatusCode)
-}
-
-const metricsJson = "[{\"name\":\"metric-name\",\"type\":\"counter\",\"tags\":[\"tag1:value1\",\"tag2:value2\"],\"value\":[1,0,0,0,0,0,0,0]}]"
-
-func TestProxyJson(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
-
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.request_count",
-		int64(1), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Timing(
-		"veneur_proxy.ingest.request_latency_ms",
-		gomock.Any(), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.metrics_count",
-		int64(1), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.handle.metrics_count",
-		int64(1), []string{"error:false"}, 1.0)
-
-	fixture.Destinations.EXPECT().
-		Get("metric-namecountertag1:value1,tag2:value2").
-		Return(fixture.Destination, nil)
-	sendChannel := make(chan connect.SendRequest, 1)
-	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
-	closedChannel := make(chan struct{})
-	fixture.Destination.EXPECT().ClosedChannel().Return(closedChannel)
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(
-		"GET", "/import", strings.NewReader(metricsJson))
-	fixture.Handlers.HandleJsonMetrics(recorder, request)
-	sendRequest := <-sendChannel
-
-	assert.Equal(t, &metricpb.Metric{
-		Name: "metric-name",
-		Tags: []string{"tag1:value1", "tag2:value2"},
-		Type: metricpb.Type_Counter,
-		Value: &metricpb.Metric_Counter{
-			Counter: &metricpb.CounterValue{
-				Value: 1,
-			},
-		},
-		Scope: metricpb.Scope_Global,
-	}, sendRequest.Metric)
-	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-}
-
-func TestProxyJsonBadRequest(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
-
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.request_count",
-		int64(1), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Timing(
-		"veneur_proxy.ingest.request_latency_ms",
-		gomock.Any(), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.request_error_count",
-		int64(1), []string{"protocol:http", "status:error_decode"}, 1.0)
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest("GET", "/import", strings.NewReader("["))
-	fixture.Handlers.HandleJsonMetrics(recorder, request)
-}
-
-const metricsJsonBadType = "[{\"name\":\"metric-name\",\"type\":\"unknown\"}]"
-
-func TestProxyJsonConvertError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
-
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.request_count",
-		int64(1), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Timing(
-		"veneur_proxy.ingest.request_latency_ms",
-		gomock.Any(), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.ingest.metrics_count",
-		int64(1), []string{"protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.handle.metrics_count",
-		int64(1), []string{"error:json_convert"}, 1.0)
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(
-		"GET", "/import", strings.NewReader(metricsJsonBadType))
-	fixture.Handlers.HandleJsonMetrics(recorder, request)
 }
 
 var metric = &metricpb.Metric{
