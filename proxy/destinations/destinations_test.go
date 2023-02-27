@@ -80,10 +80,7 @@ func TestAddSingleWithFailure(t *testing.T) {
 	fixture.destinations.Add(context.Background(), []string{"address"})
 
 	assert.Equal(t, 0, fixture.destinations.Size())
-	assert.Eventually(t, func() bool {
-		fixture.destinations.Wait()
-		return true
-	}, 2*time.Millisecond, time.Millisecond)
+	fixture.destinations.Wait()
 }
 
 func TestAddMultiple(t *testing.T) {
