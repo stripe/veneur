@@ -3,6 +3,7 @@ package connect_test
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -126,16 +127,22 @@ func TestConnect(t *testing.T) {
 		[]string{"error:false"}, 1.0)
 	mockDestinationsHash.EXPECT().RemoveDestination(
 		server.grpcListener.Addr().String())
-	connectionClosed := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
 	mockDestinationsHash.EXPECT().ConnectionClosed().Do(func() {
-		close(connectionClosed)
+		wg.Done()
 	})
 	mockStatsd.EXPECT().Count(
-		"veneur_proxy.grpc.conn_end", int64(1),
-		[]string{"client:true"}, 1.0)
+		"veneur_proxy.grpc.conn_end",
+		int64(1),
+		[]string{"client:true"},
+		1.0,
+	).Do(func(_ string, _ int64, _ []string, _ float64) {
+		wg.Done()
+	})
 
 	server.Close(t)
-	<-connectionClosed
+	wg.Wait()
 }
 
 func TestConnectDialTimeoutExpired(t *testing.T) {
