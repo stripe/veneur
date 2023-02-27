@@ -24,9 +24,9 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.2.1
-	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
-	github.com/prometheus/common v0.6.0
+	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.26.0
 	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/satori/go.uuid v1.2.1-0.20180103174451-36e9d2ebbde5
@@ -41,7 +41,7 @@ require (
 	golang.org/x/net v0.0.0-20211008194852-3b03d305991f
 	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.26.0-rc.1
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
 	k8s.io/api v0.20.0
@@ -57,6 +57,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.0 // indirect
 	github.com/aws/smithy-go v1.11.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-bits v0.0.0-20160601073636-2ad8d707cc05 // indirect
 	github.com/dgryski/go-metro v0.0.0-20170608043646-0f6473574cdf // indirect
@@ -64,7 +65,7 @@ require (
 	github.com/eapache/go-resiliency v1.0.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20160609142408-bb955e01b934 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
+	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-logr/logr v0.2.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/googleapis v1.3.1 // indirect
@@ -83,10 +84,9 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/jaegertracing/jaeger v1.15.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/json-iterator/go v1.1.10 // indirect
+	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/juju/errors v0.0.0-20181118221551-089d3ea4e4d5 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
-	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/miekg/dns v1.1.25 // indirect
@@ -96,7 +96,7 @@ require (
 	github.com/pierrec/lz4 v1.0.2-0.20171218195038-2fcda4cb7018 // indirect
 	github.com/pierrec/xxHash v0.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/procfs v0.0.5 // indirect
+	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/signalfx/com_signalfx_metrics_protobuf v0.0.2 // indirect
 	github.com/signalfx/gohistogram v0.0.0-20160107210732-1ccfd2ff5083 // indirect
 	github.com/signalfx/sapm-proto v0.4.0 // indirect
