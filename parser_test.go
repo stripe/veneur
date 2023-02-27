@@ -627,17 +627,33 @@ func TestParserSSFWithStatusCheck(t *testing.T) {
 	assert.Len(t, m.Tags, 3, "Tags")
 }
 
+func parseMetrics(t *testing.T, p *samplers.Parser, buf []byte) []*samplers.UDPMetric {
+	var metrics []*samplers.UDPMetric
+	err := p.ParseMetric(buf, func(m *samplers.UDPMetric) {
+		metrics = append(metrics, m)
+	})
+	require.NoError(t, err)
+	return metrics
+}
+
+func parseOneMetric(t *testing.T, p *samplers.Parser, buf []byte) *samplers.UDPMetric {
+	metrics := parseMetrics(t, p, buf)
+	require.Equal(t, 1, len(metrics))
+	return metrics[0]
+}
+
 func TestParser(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|c"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -645,13 +661,14 @@ func TestParserGauge(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|g"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "gauge", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|g"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|g"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -659,13 +676,14 @@ func TestParserHistogram(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|h"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|h"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|h"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -673,13 +691,14 @@ func TestParserHistogramFloat(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|h"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1.234|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1.234), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1.234|h"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1.234|h"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -687,27 +706,46 @@ func TestParserTimer(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|ms"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "timer", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|ms"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|ms"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
+}
+
+func TestParserTimerAgg(t *testing.T) {
+	parser := samplers.NewParser([]string{})
+	ms := parseMetrics(t, &parser, []byte("a.b.c:1:2:3:4|ms|@0.1|#result:success,op:frob"))
+	assert.Equal(t, 4, len(ms))
+	expectedValues := []float64{1, 2, 3, 4}
+	for i, m := range ms {
+		assert.Equal(t, "a.b.c", m.Name, "Name for record %d", i)
+		assert.Equal(t, expectedValues[i], m.Value, "Value for record %d", i)
+		assert.Equal(t, "timer", m.Type, "Type for record %d", i)
+		assert.Equal(t, []string{"op:frob", "result:success"}, m.Tags, "Tags for record %d", i)
+		assert.Equal(t, "op:frob,result:success", m.JoinedTags, "JoinedTags for record %d", i)
+		assert.Equal(t, float32(0.1), m.SampleRate, "SampleRate for record %d", i)
+		// All records should have the same digest
+		assert.Equal(t, ms[0].Digest, m.Digest, "Digest for record %d", i)
+		assert.Equal(t, samplers.MixedScope, m.Scope, "Scope for record %d", i)
+	}
 }
 
 func TestParserDistribution(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(0.1716441474854946), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
 	assert.Equal(t, 2, len(m.Tags), "# of tags")
 }
 
@@ -715,13 +753,14 @@ func TestParserTimerFloat(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|ms"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1.234|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1.234), m.Value, "Value")
 	assert.Equal(t, "timer", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1.234|ms"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1.234|ms"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -729,13 +768,14 @@ func TestParserSet(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:foo|s"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, "foo", m.Value, "Value")
 	assert.Equal(t, "set", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:foo|s"))
+
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:foo|s"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
@@ -743,34 +783,32 @@ func TestParserWithTags(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m.Tags, "Expected Tags")
-	y, _ := yesTags.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
+	y := parseOneMetric(t, &yesTags, []byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar", "implicit"}, y.Tags, "Expected Tags")
 
 	// ensure that tag order doesn't matter: it must produce the same digest
-	m2, _ := noTags.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
+	m2 := parseOneMetric(t, &noTags, []byte("a.b.c:1|c|#baz:gorch,foo:bar"))
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m2.Tags, "Expected Tags")
 	assert.Equal(t, m.Digest, m2.Digest, "Digest must not depend on tag order")
 	assert.Equal(t, m.MetricKey, m2.MetricKey, "MetricKey must not depend on tag order")
-	y2, _ := yesTags.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
+	y2 := parseOneMetric(t, &yesTags, []byte("a.b.c:1|c|#baz:gorch,foo:bar"))
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar", "implicit"}, y2.Tags, "Expected Tags")
 	assert.Equal(t, y.Digest, y2.Digest, "Digest must not depend on tag order")
 	assert.Equal(t, y.MetricKey, y2.MetricKey, "MetricKey must not depend on tag order")
 
 	// treated as an empty tag
-	m, err := noTags.ParseMetric([]byte("a.b.c:1|c|#"))
-	assert.Equal(t, nil, err, "not an error")
+	m = parseOneMetric(t, &noTags, []byte("a.b.c:1|c|#"))
 	assert.EqualValues(t, []string{""}, m.Tags, "expected empty tag")
-	m, err = yesTags.ParseMetric([]byte("a.b.c:1|c|#"))
-	assert.Equal(t, nil, err, "not an error")
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|c|#"))
 	assert.EqualValues(t, []string{"", "implicit"}, m.Tags, "expected empty tag")
 
-	_, valueError := noTags.ParseMetric([]byte("a.b.c:fart|c"))
+	valueError := noTags.ParseMetric([]byte("a.b.c:fart|c"), nil)
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
@@ -779,55 +817,54 @@ func TestParserWithSampleRate(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|c|@0.1"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 
-	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
+	valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"), nil)
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
-	_, valueError = (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|g|@0.1"))
-	assert.NoError(t, valueError, "Got errors when parsing")
+	_ = parseOneMetric(t, &samplers.Parser{}, []byte("a.b.c:1|g|@0.1"))
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
 	noTags := samplers.NewParser([]string{})
 	yesTags := samplers.NewParser([]string{"implicit"})
 
-	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
+	m := parseOneMetric(t, &noTags, []byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Len(t, m.Tags, 2, "Tags")
-	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
+	m = parseOneMetric(t, &yesTags, []byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.Len(t, m.Tags, 3, "Tags")
 
-	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
+	valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"), nil)
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
 func TestInvalidPackets(t *testing.T) {
 	table := map[string]string{
-		"foo":                                "1 colon",
+		"foo":                                "Invalid metric packet, need at least 1 pipe for type",
 		"foo:1":                              "1 pipe",
-		"foo:1||":                            "metric type",
-		"foo:|c|":                            "metric value",
-		"this_is_a_bad_metric:nan|g|#shell":  "metric value",
-		"this_is_a_bad_metric:NaN|g|#shell":  "metric value",
-		"this_is_a_bad_metric:-inf|g|#shell": "metric value",
-		"this_is_a_bad_metric:+inf|g|#shell": "metric value",
+		"foo:1||":                            "Invalid metric packet, metric type not specified",
+		"foo:|c|":                            "Invalid metric packet, empty string after/between pipes",
+		"this_is_a_bad_metric:nan|g|#shell":  "Invalid number for metric value",
+		"this_is_a_bad_metric:NaN|g|#shell":  "Invalid number for metric value",
+		"this_is_a_bad_metric:-inf|g|#shell": "Invalid number for metric value",
+		"this_is_a_bad_metric:+inf|g|#shell": "Invalid number for metric value",
 		"foo:1|foo|":                         "Invalid type",
-		"foo:1|c||":                          "pipes",
+		"foo:1|c||":                          "Invalid metric packet, empty string after/between pipes",
 		"foo:1|c|foo":                        "unknown section",
 		"foo:1|c|@-0.1":                      ">0",
 		"foo:1|c|@1.1":                       "<=1",
@@ -836,23 +873,23 @@ func TestInvalidPackets(t *testing.T) {
 	}
 
 	for packet, errContent := range table {
-		_, err := (&samplers.Parser{}).ParseMetric([]byte(packet))
-		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
-		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
+		t.Run(packet, func(t *testing.T) {
+			err := (&samplers.Parser{}).ParseMetric([]byte(packet), nil)
+			assert.Error(t, err, "Should have gotten error parsing %q", packet)
+			assert.Contains(t, err.Error(), errContent, "Error should have contained text")
+		})
 	}
 }
 
 func TestLocalOnlyEscape(t *testing.T) {
-	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
-	assert.NoError(t, err, "should have no error parsing")
+	m := parseOneMetric(t, &samplers.Parser{}, []byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
 	assert.Equal(t, samplers.LocalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurlocalonly", "veneurlocalonly should not actually be a tag")
 	assert.Contains(t, m.Tags, "tag2:quacks", "tag2 should be preserved in the list of tags after removing magic tags")
 }
 
 func TestGlobalOnlyEscape(t *testing.T) {
-	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
-	assert.NoError(t, err, "should have no error parsing")
+	m := parseOneMetric(t, &samplers.Parser{}, []byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
 	assert.Equal(t, samplers.GlobalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurglobalonly", "veneurlocalonly should not actually be a tag")
 	assert.Contains(t, m.Tags, "tag2:quacks", "tag2 should be preserved in the list of tags after removing magic tags")
@@ -1096,12 +1133,12 @@ func BenchmarkParseMetric(b *testing.B) {
 				metricBytes := []byte(statsd)
 				parser := samplers.NewParser(it.metricTags)
 				b.Run(benchName, func(b *testing.B) {
+					b.ReportAllocs()
 					for n := 0; n < b.N; n++ {
-						m, err := parser.ParseMetric(metricBytes)
+						err := parser.ParseMetric(metricBytes, func(m *samplers.UDPMetric) { total += m.Digest })
 						if err != nil {
 							b.Fatal(err)
 						}
-						total += m.Digest
 					}
 				})
 			}
