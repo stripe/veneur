@@ -301,6 +301,51 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	assert.False(t, hasbucket5)
 }
 
+// This test verifies a fix for a previous bug that caused diff calculations to sporadically break when multiple labels
+// were added via the -a flag.  Labels were stored as key/values in a map and returned in a potentially different order
+// each time since map iteration order is random.  This caused the translator to emit the cumulative value instead of
+// the diffed value, because it would seem as though the metric was new when in fact it had been previously cached
+// with a different label ordering.  For example, the translator might look for "counter-key2:value2-key1:value1" when
+// it had been previously cached as "counter-key1:value1-key2:value2"
+func TestCountsWithAddingLabels(t *testing.T) {
+	counter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter",
+		Help: "A typical counter.",
+	})
+
+	ts, err := testPrometheusEndpoint(
+		counter,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := testConfig(t, ts.URL)
+	cfg.addedLabels = map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	}
+	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
+	assert.NoError(t, err)
+
+	stats, err := collect(context.Background(), cfg, statsClient, cache)
+	assert.NoError(t, err)
+	splitStats(stats)
+
+	// Run 100 time to ensure we aren't just passing the test we got lucky
+	for i := 0; i < 100; i++ {
+		counter.Inc()
+		counter.Inc()
+		counter.Inc()
+
+		stats, err = collect(context.Background(), cfg, statsClient, cache)
+		assert.NoError(t, err)
+		counts, _ := splitStats(stats)
+		count, _ := countValue(counts, "counter", "key1:value1", "key2:value2")
+		assert.Equal(t, 3, count)
+	}
+}
+
 func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	histogram := prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "histogram",
