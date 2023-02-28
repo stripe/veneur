@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stripe/veneur/v14/sources/openmetrics"
@@ -201,8 +202,16 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 		tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
 	}
 
-	for name, value := range t.added {
-		tags = append(tags, fmt.Sprintf("%s:%s", name, value))
+	// Tags need to be returned in sorted order so that metric cache keys are consistent across metric observation
+	// sweeps
+	names := make([]string, 0, len(t.added))
+	for k := range t.added {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		tags = append(tags, fmt.Sprintf("%s:%s", name, t.added[name]))
 	}
 
 	return tags

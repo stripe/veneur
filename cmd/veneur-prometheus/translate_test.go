@@ -70,7 +70,7 @@ func TestAddTags(t *testing.T) {
 		"so:good",
 	}
 
-	assert.ElementsMatch(t, expectedTags, tags)
+	assert.Equal(t, expectedTags, tags)
 }
 
 func TestReplaceTags(t *testing.T) {
