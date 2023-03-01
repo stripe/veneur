@@ -3,15 +3,38 @@
 This folder holds the Docker resources for building [Veneur](https://github.com/stripe/veneur), and a sample systemd unit for running it.
 
 ## Building
+
+You should run these commands from the project root.
+
 For the Debian-based image:
+
 ```
 docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
 ```
 
 For the Alpine Linux-based image:
+
 ```
 docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
 ```
+
+## Building with multi-arch
+
+You should run these commands from the project root.
+
+For the Debian-based image:
+
+```
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --output=type=docker
+```
+
+For the Alpine Linux-based image:
+
+```
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --output=type=docker
+```
+
+Multi-arch build works best when pushing to a remote repository, so tag it accordingly and replace `--output=type=docker` with `--push` for that to work.
 
 ## Running
 
@@ -40,6 +63,7 @@ $ docker run --rm -it \
 ## Veneur-emit
 
 `veneur-emit` is also included in the image, and can be run explicitly like so:
+
 ```
-$ docker run --net=host -it veneur /veneur/veneur-emit -count 1 -name foo -hostport "127.0.0.1:8126"
+docker run --net=host -it veneur /veneur/veneur-emit -count 1 -name foo -hostport "127.0.0.1:8126"
 ```
