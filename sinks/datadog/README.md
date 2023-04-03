@@ -4,7 +4,7 @@ This sink sends Veneur metrics to [Datadog](https://www.datadoghq.com).
 
 # Configuration
 
-See the various `datadog_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.
+See the various `datadog_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/e6bd72f797289e2c99b8a1a8db3d74189fed1629/example.yaml#L288-L318) or append `datadog_` to the struct tags present [here](https://github.com/stripe/veneur/blob/0db558ae5941fd953166648123faf5949f74688b/sinks/datadog/datadog.go#L37-L46) for all available configuration options.
 
 # Status
 
