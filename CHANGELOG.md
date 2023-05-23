@@ -7,6 +7,7 @@
 * Migrate Prometheus to new config format; part of multi-sink routing update. Thanks, [truong-stripe](https://github.com/truong-stripe)!
 * Authentication support for Cortex remote-write sink. Thanks, [oscil8](https://github.com/oscil8)!
 * Option to flush sinks on shutdown. Thanks, [csolidum](https://github.com/csolidum)!
+* Support for [extended clientside aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#client-side-aggregation). Thanks, [praboud-stripe](https://github.com/praboud-stripe)!
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!

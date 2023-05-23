@@ -995,7 +995,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 		}
 		s.ingestMetric(svcheck)
 	} else {
-		metric, err := s.parser.ParseMetric(packet)
+		err := s.parser.ParseMetric(packet, s.ingestMetric)
 		if err != nil {
 			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -1004,7 +1004,6 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.ingestMetric(metric)
 	}
 	return nil
 }
