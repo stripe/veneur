@@ -1,5 +1,7 @@
 package sarama
 
+import "errors"
+
 type MessageBlock struct {
 	Offset int64
 	Msg    *Message
@@ -29,7 +31,10 @@ func (msb *MessageBlock) decode(pd packetDecoder) (err error) {
 		return err
 	}
 
-	if err = pd.push(&lengthField{}); err != nil {
+	lengthDecoder := acquireLengthField()
+	defer releaseLengthField(lengthDecoder)
+
+	if err = pd.push(lengthDecoder); err != nil {
 		return err
 	}
 
@@ -47,6 +52,7 @@ func (msb *MessageBlock) decode(pd packetDecoder) (err error) {
 
 type MessageSet struct {
 	PartialTrailingMessage bool // whether the set on the wire contained an incomplete trailing MessageBlock
+	OverflowMessage        bool // whether the set on the wire contained an overflow message
 	Messages               []*MessageBlock
 }
 
@@ -64,17 +70,34 @@ func (ms *MessageSet) decode(pd packetDecoder) (err error) {
 	ms.Messages = nil
 
 	for pd.remaining() > 0 {
+		magic, err := magicValue(pd)
+		if err != nil {
+			if errors.Is(err, ErrInsufficientData) {
+				ms.PartialTrailingMessage = true
+				return nil
+			}
+			return err
+		}
+
+		if magic > 1 {
+			return nil
+		}
+
 		msb := new(MessageBlock)
 		err = msb.decode(pd)
-		switch err {
-		case nil:
+		if err == nil {
 			ms.Messages = append(ms.Messages, msb)
-		case ErrInsufficientData:
+		} else if errors.Is(err, ErrInsufficientData) {
 			// As an optimization the server is allowed to return a partial message at the
 			// end of the message set. Clients should handle this case. So we just ignore such things.
-			ms.PartialTrailingMessage = true
+			if msb.Offset == -1 {
+				// This is an overflow message caused by chunked down conversion
+				ms.OverflowMessage = true
+			} else {
+				ms.PartialTrailingMessage = true
+			}
 			return nil
-		default:
+		} else {
 			return err
 		}
 	}

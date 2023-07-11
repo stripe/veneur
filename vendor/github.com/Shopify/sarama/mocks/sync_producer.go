@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/Shopify/sarama"
@@ -15,16 +16,25 @@ type SyncProducer struct {
 	t            ErrorReporter
 	expectations []*producerExpectation
 	lastOffset   int64
+
+	*TopicConfig
+	newPartitioner sarama.PartitionerConstructor
+	partitioners   map[string]sarama.Partitioner
 }
 
 // NewSyncProducer instantiates a new SyncProducer mock. The t argument should
 // be the *testing.T instance of your test method. An error will be written to it if
-// an expectation is violated. The config argument is currently unused, but is
-// maintained to be compatible with the async Producer.
+// an expectation is violated. The config argument is used to handle partitioning.
 func NewSyncProducer(t ErrorReporter, config *sarama.Config) *SyncProducer {
+	if config == nil {
+		config = sarama.NewConfig()
+	}
 	return &SyncProducer{
-		t:            t,
-		expectations: make([]*producerExpectation, 0),
+		t:              t,
+		expectations:   make([]*producerExpectation, 0),
+		TopicConfig:    NewTopicConfig(),
+		newPartitioner: config.Producer.Partitioner,
+		partitioners:   make(map[string]sarama.Partitioner, 1),
 	}
 }
 
@@ -45,20 +55,21 @@ func (sp *SyncProducer) SendMessage(msg *sarama.ProducerMessage) (partition int3
 	if len(sp.expectations) > 0 {
 		expectation := sp.expectations[0]
 		sp.expectations = sp.expectations[1:]
+		topic := msg.Topic
+		partition, err := sp.partitioner(topic).Partition(msg, sp.partitions(topic))
+		if err != nil {
+			sp.t.Errorf("Partitioner returned an error: %s", err.Error())
+			return -1, -1, err
+		}
+		msg.Partition = partition
 		if expectation.CheckFunction != nil {
-			val, err := msg.Value.Encode()
-			if err != nil {
-				sp.t.Errorf("Input message encoding failed: %s", err.Error())
-				return -1, -1, err
-			}
-
-			errCheck := expectation.CheckFunction(val)
+			errCheck := expectation.CheckFunction(msg)
 			if errCheck != nil {
 				sp.t.Errorf("Check function returned an error: %s", errCheck.Error())
 				return -1, -1, errCheck
 			}
 		}
-		if expectation.Result == errProduceSuccess {
+		if errors.Is(expectation.Result, errProduceSuccess) {
 			sp.lastOffset++
 			msg.Offset = sp.lastOffset
 			return 0, msg.Offset, nil
@@ -78,19 +89,43 @@ func (sp *SyncProducer) SendMessages(msgs []*sarama.ProducerMessage) error {
 	defer sp.l.Unlock()
 
 	if len(sp.expectations) >= len(msgs) {
-		expectations := sp.expectations[0 : len(msgs)-1]
+		expectations := sp.expectations[0:len(msgs)]
 		sp.expectations = sp.expectations[len(msgs):]
 
-		for _, expectation := range expectations {
-			if expectation.Result != errProduceSuccess {
+		for i, expectation := range expectations {
+			topic := msgs[i].Topic
+			partition, err := sp.partitioner(topic).Partition(msgs[i], sp.partitions(topic))
+			if err != nil {
+				sp.t.Errorf("Partitioner returned an error: %s", err.Error())
+				return err
+			}
+			msgs[i].Partition = partition
+			if expectation.CheckFunction != nil {
+				errCheck := expectation.CheckFunction(msgs[i])
+				if errCheck != nil {
+					sp.t.Errorf("Check function returned an error: %s", errCheck.Error())
+					return errCheck
+				}
+			}
+			if !errors.Is(expectation.Result, errProduceSuccess) {
 				return expectation.Result
 			}
-
+			sp.lastOffset++
+			msgs[i].Offset = sp.lastOffset
 		}
 		return nil
 	}
 	sp.t.Errorf("Insufficient expectations set on this mock producer to handle the input messages.")
 	return errOutOfExpectations
+}
+
+func (sp *SyncProducer) partitioner(topic string) sarama.Partitioner {
+	partitioner := sp.partitioners[topic]
+	if partitioner == nil {
+		partitioner = sp.newPartitioner(topic)
+		sp.partitioners[topic] = partitioner
+	}
+	return partitioner
 }
 
 // Close corresponds with the Close method of sarama's SyncProducer implementation.
@@ -111,36 +146,64 @@ func (sp *SyncProducer) Close() error {
 // Setting expectations
 ////////////////////////////////////////////////
 
+// ExpectSendMessageWithMessageCheckerFunctionAndSucceed sets an expectation on the mock producer
+// that SendMessage will be called. The mock producer will first call the given function to check
+// the message. It will cascade the error of the function, if any, or handle the message as if it
+// produced successfully, i.e. by returning a valid partition, and offset, and a nil error.
+func (sp *SyncProducer) ExpectSendMessageWithMessageCheckerFunctionAndSucceed(cf MessageChecker) *SyncProducer {
+	sp.l.Lock()
+	defer sp.l.Unlock()
+	sp.expectations = append(sp.expectations, &producerExpectation{Result: errProduceSuccess, CheckFunction: cf})
+
+	return sp
+}
+
+// ExpectSendMessageWithMessageCheckerFunctionAndFail sets an expectation on the mock producer that
+// SendMessage will be called. The mock producer will first call the given function to check the
+// message. It will cascade the error of the function, if any, or handle the message as if it
+// failed to produce successfully, i.e. by returning the provided error.
+func (sp *SyncProducer) ExpectSendMessageWithMessageCheckerFunctionAndFail(cf MessageChecker, err error) *SyncProducer {
+	sp.l.Lock()
+	defer sp.l.Unlock()
+	sp.expectations = append(sp.expectations, &producerExpectation{Result: err, CheckFunction: cf})
+
+	return sp
+}
+
 // ExpectSendMessageWithCheckerFunctionAndSucceed sets an expectation on the mock producer that SendMessage
 // will be called. The mock producer will first call the given function to check the message value.
 // It will cascade the error of the function, if any, or handle the message as if it produced
 // successfully, i.e. by returning a valid partition, and offset, and a nil error.
-func (sp *SyncProducer) ExpectSendMessageWithCheckerFunctionAndSucceed(cf ValueChecker) {
-	sp.l.Lock()
-	defer sp.l.Unlock()
-	sp.expectations = append(sp.expectations, &producerExpectation{Result: errProduceSuccess, CheckFunction: cf})
+func (sp *SyncProducer) ExpectSendMessageWithCheckerFunctionAndSucceed(cf ValueChecker) *SyncProducer {
+	sp.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(messageValueChecker(cf))
+
+	return sp
 }
 
 // ExpectSendMessageWithCheckerFunctionAndFail sets an expectation on the mock producer that SendMessage will be
 // called. The mock producer will first call the given function to check the message value.
 // It will cascade the error of the function, if any, or handle the message as if it failed
 // to produce successfully, i.e. by returning the provided error.
-func (sp *SyncProducer) ExpectSendMessageWithCheckerFunctionAndFail(cf ValueChecker, err error) {
-	sp.l.Lock()
-	defer sp.l.Unlock()
-	sp.expectations = append(sp.expectations, &producerExpectation{Result: err, CheckFunction: cf})
+func (sp *SyncProducer) ExpectSendMessageWithCheckerFunctionAndFail(cf ValueChecker, err error) *SyncProducer {
+	sp.ExpectSendMessageWithMessageCheckerFunctionAndFail(messageValueChecker(cf), err)
+
+	return sp
 }
 
 // ExpectSendMessageAndSucceed sets an expectation on the mock producer that SendMessage will be
 // called. The mock producer will handle the message as if it produced successfully, i.e. by
 // returning a valid partition, and offset, and a nil error.
-func (sp *SyncProducer) ExpectSendMessageAndSucceed() {
-	sp.ExpectSendMessageWithCheckerFunctionAndSucceed(nil)
+func (sp *SyncProducer) ExpectSendMessageAndSucceed() *SyncProducer {
+	sp.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(nil)
+
+	return sp
 }
 
 // ExpectSendMessageAndFail sets an expectation on the mock producer that SendMessage will be
 // called. The mock producer will handle the message as if it failed to produce
 // successfully, i.e. by returning the provided error.
-func (sp *SyncProducer) ExpectSendMessageAndFail(err error) {
-	sp.ExpectSendMessageWithCheckerFunctionAndFail(nil, err)
+func (sp *SyncProducer) ExpectSendMessageAndFail(err error) *SyncProducer {
+	sp.ExpectSendMessageWithMessageCheckerFunctionAndFail(nil, err)
+
+	return sp
 }
