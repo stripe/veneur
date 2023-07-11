@@ -18,8 +18,11 @@ package model
 import (
 	"encoding/gob"
 	"io"
+	"strconv"
 
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/uber/jaeger-client-go"
+	"go.uber.org/zap"
 )
 
 const (
@@ -27,7 +30,7 @@ const (
 	SampledFlag = Flags(1)
 	// DebugFlag is the bit set in Flags in order to define a span as a debug span
 	DebugFlag = Flags(2)
-	//FirehoseFlag is the bit in Flags in order to define a span as a firehose span
+	// FirehoseFlag is the bit in Flags in order to define a span as a firehose span
 	FirehoseFlag = Flags(8)
 
 	samplerType        = "sampler.type"
@@ -51,6 +54,14 @@ func (s *Span) HasSpanKind(kind ext.SpanKindEnum) bool {
 		return tag.AsString() == string(kind)
 	}
 	return false
+}
+
+// GetSpanKind returns value of `span.kind` tag and whether the tag can be found
+func (s *Span) GetSpanKind() (spanKind string, found bool) {
+	if tag, ok := KeyValues(s.Tags).FindByKey(string(ext.SpanKind)); ok {
+		return tag.AsString(), true
+	}
+	return "", false
 }
 
 // GetSamplerType returns the sampler type for span
@@ -86,13 +97,23 @@ func (s *Span) NormalizeTimestamps() {
 }
 
 // ParentSpanID returns ID of a parent span if it exists.
-// It searches for the first child-of reference pointing to the same trace ID.
+// It searches for the first child-of or follows-from reference pointing to the same trace ID.
 func (s *Span) ParentSpanID() SpanID {
+	var followsFromRef *SpanRef
 	for i := range s.References {
 		ref := &s.References[i]
-		if ref.TraceID == s.TraceID && ref.RefType == ChildOf {
+		if ref.TraceID != s.TraceID {
+			continue
+		}
+		if ref.RefType == ChildOf {
 			return ref.SpanID
 		}
+		if followsFromRef == nil && ref.RefType == FollowsFrom {
+			followsFromRef = ref
+		}
+	}
+	if followsFromRef != nil {
+		return followsFromRef.SpanID
 	}
 	return SpanID(0)
 }
@@ -108,6 +129,39 @@ func (s *Span) ReplaceParentID(newParentID SpanID) {
 		}
 	}
 	s.References = MaybeAddParentSpanID(s.TraceID, newParentID, s.References)
+}
+
+// GetSamplerParams returns the sampler.type and sampler.param value if they are valid.
+func (s *Span) GetSamplerParams(logger *zap.Logger) (string, float64) {
+	tag, ok := KeyValues(s.Tags).FindByKey(jaeger.SamplerTypeTagKey)
+	if !ok {
+		return "", 0
+	}
+	if tag.VType != StringType {
+		logger.
+			With(zap.String("traceID", s.TraceID.String())).
+			With(zap.String("spanID", s.SpanID.String())).
+			Warn("sampler.type tag is not a string", zap.Any("tag", tag))
+		return "", 0
+	}
+	samplerType := tag.AsString()
+	if samplerType != jaeger.SamplerTypeProbabilistic && samplerType != jaeger.SamplerTypeLowerBound &&
+		samplerType != jaeger.SamplerTypeRateLimiting {
+		return "", 0
+	}
+	tag, ok = KeyValues(s.Tags).FindByKey(jaeger.SamplerParamTagKey)
+	if !ok {
+		return "", 0
+	}
+	samplerParam, err := samplerParamToFloat(tag)
+	if err != nil {
+		logger.
+			With(zap.String("traceID", s.TraceID.String())).
+			With(zap.String("spanID", s.SpanID.String())).
+			Warn("sampler.param tag is not a number", zap.Any("tag", tag))
+		return "", 0
+	}
+	return samplerType, samplerParam
 }
 
 // ------- Flags -------
@@ -128,7 +182,7 @@ func (f *Flags) SetFirehose() {
 }
 
 func (f *Flags) setFlags(bit Flags) {
-	*f = *f | bit
+	*f |= bit
 }
 
 // IsSampled returns true if the Flags denote sampling
@@ -150,4 +204,16 @@ func (f Flags) IsFirehoseEnabled() bool {
 
 func (f Flags) checkFlags(bit Flags) bool {
 	return f&bit == bit
+}
+
+func samplerParamToFloat(samplerParamTag KeyValue) (float64, error) {
+	// The param could be represented as a string, an int, or a float
+	switch samplerParamTag.VType {
+	case Float64Type:
+		return samplerParamTag.Float64(), nil
+	case Int64Type:
+		return float64(samplerParamTag.Int64()), nil
+	default:
+		return strconv.ParseFloat(samplerParamTag.AsString(), 64)
+	}
 }

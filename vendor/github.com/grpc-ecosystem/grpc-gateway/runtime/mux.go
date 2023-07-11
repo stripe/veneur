@@ -37,6 +37,7 @@ type ServeMux struct {
 	streamErrorHandler        StreamErrorHandlerFunc
 	protoErrorHandler         ProtoErrorHandlerFunc
 	disablePathLengthFallback bool
+	lastMatchWins             bool
 }
 
 // ServeMuxOption is an option that can be given to a ServeMux on construction.
@@ -51,6 +52,15 @@ type ServeMuxOption func(*ServeMux)
 func WithForwardResponseOption(forwardResponseOption func(context.Context, http.ResponseWriter, proto.Message) error) ServeMuxOption {
 	return func(serveMux *ServeMux) {
 		serveMux.forwardResponseOptions = append(serveMux.forwardResponseOptions, forwardResponseOption)
+	}
+}
+
+// SetQueryParameterParser sets the query parameter parser, used to populate message from query parameters.
+// Configuring this will mean the generated swagger output is no longer correct, and it should be
+// done with careful consideration.
+func SetQueryParameterParser(queryParameterParser QueryParameterParser) ServeMuxOption {
+	return func(serveMux *ServeMux) {
+		currentQueryParser = queryParameterParser
 	}
 }
 
@@ -101,11 +111,11 @@ func WithMetadata(annotator func(context.Context, *http.Request) metadata.MD) Se
 	}
 }
 
-// WithProtoErrorHandler returns a ServeMuxOption for passing metadata to a gRPC context.
+// WithProtoErrorHandler returns a ServeMuxOption for configuring a custom error handler.
 //
 // This can be used to handle an error as general proto message defined by gRPC.
-// The response including body and status is not backward compatible with the default error handler.
-// When this option is used, HTTPError and OtherErrorHandler are overwritten on initialization.
+// When this option is used, the mux uses the configured error handler instead of HTTPError and
+// OtherErrorHandler.
 func WithProtoErrorHandler(fn ProtoErrorHandlerFunc) ServeMuxOption {
 	return func(serveMux *ServeMux) {
 		serveMux.protoErrorHandler = fn
@@ -133,6 +143,15 @@ func WithStreamErrorHandler(fn StreamErrorHandlerFunc) ServeMuxOption {
 	}
 }
 
+// WithLastMatchWins returns a ServeMuxOption that will enable "last
+// match wins" behavior, where if multiple path patterns match a
+// request path, the last one defined in the .proto file will be used.
+func WithLastMatchWins() ServeMuxOption {
+	return func(serveMux *ServeMux) {
+		serveMux.lastMatchWins = true
+	}
+}
+
 // NewServeMux returns a new ServeMux whose internal mapping is empty.
 func NewServeMux(opts ...ServeMuxOption) *ServeMux {
 	serveMux := &ServeMux{
@@ -144,18 +163,6 @@ func NewServeMux(opts ...ServeMuxOption) *ServeMux {
 
 	for _, opt := range opts {
 		opt(serveMux)
-	}
-
-	if serveMux.protoErrorHandler != nil {
-		HTTPError = serveMux.protoErrorHandler
-		// OtherErrorHandler is no longer used when protoErrorHandler is set.
-		// Overwritten by a special error handler to return Unknown.
-		OtherErrorHandler = func(w http.ResponseWriter, r *http.Request, _ string, _ int) {
-			ctx := context.Background()
-			_, outboundMarshaler := MarshalerForRequest(serveMux, r)
-			sterr := status.Error(codes.Unknown, "unexpected use of OtherErrorHandler")
-			serveMux.protoErrorHandler(ctx, serveMux, outboundMarshaler, w, r, sterr)
-		}
 	}
 
 	if serveMux.incomingHeaderMatcher == nil {
@@ -173,7 +180,11 @@ func NewServeMux(opts ...ServeMuxOption) *ServeMux {
 
 // Handle associates "h" to the pair of HTTP method and path pattern.
 func (s *ServeMux) Handle(meth string, pat Pattern, h HandlerFunc) {
-	s.handlers[meth] = append(s.handlers[meth], handler{pat: pat, h: h})
+	if s.lastMatchWins {
+		s.handlers[meth] = append([]handler{handler{pat: pat, h: h}}, s.handlers[meth]...)
+	} else {
+		s.handlers[meth] = append(s.handlers[meth], handler{pat: pat, h: h})
+	}
 }
 
 // ServeHTTP dispatches the request to the first handler whose pattern matches to r.Method and r.Path.

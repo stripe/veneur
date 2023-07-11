@@ -49,9 +49,9 @@ func NewTraceID(high, low uint64) TraceID {
 
 func (t TraceID) String() string {
 	if t.High == 0 {
-		return fmt.Sprintf("%x", t.Low)
+		return fmt.Sprintf("%016x", t.Low)
 	}
-	return fmt.Sprintf("%x%016x", t.High, t.Low)
+	return fmt.Sprintf("%016x%016x", t.High, t.Low)
 }
 
 // TraceIDFromString creates a TraceID from a hexadecimal string
@@ -163,7 +163,7 @@ func NewSpanID(v uint64) SpanID {
 }
 
 func (s SpanID) String() string {
-	return fmt.Sprintf("%x", uint64(s))
+	return fmt.Sprintf("%016x", uint64(s))
 }
 
 // SpanIDFromString creates a SpanID from a hexadecimal string
@@ -248,7 +248,8 @@ func (s *SpanID) UnmarshalJSON(data []byte) error {
 // User by protobuf JSON serialization.
 //
 // TODO: can be removed once this ticket is fixed:
-//       https://github.com/gogo/protobuf/issues/411#issuecomment-393856837
+//
+// https://github.com/gogo/protobuf/issues/411#issuecomment-393856837
 func (s *SpanID) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
 	return s.UnmarshalJSON(b)
 }
