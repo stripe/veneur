@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"io/ioutil"
-	"os"
-
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14/protocol"
@@ -22,12 +21,15 @@ import (
 )
 
 func TestMultipleListeners(t *testing.T) {
-	srv := &Server{}
-	srv.shutdown = make(chan struct{})
+	srv := &Server{
+		shutdown: make(chan struct{}),
+		logger:   logrus.NewEntry(logrus.New()),
+	}
+	source := SsfMetricsSource{
+		logger: srv.logger,
+	}
 
-	dir, err := ioutil.TempDir("", "unix-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unix",
@@ -37,10 +39,10 @@ func TestMultipleListeners(t *testing.T) {
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
 
-	done, _ := startSSFUnix(srv, addr)
+	done, _ := source.startSSFUnix(srv, addr)
 	assert.Panics(t, func() {
 		srv2 := &Server{}
-		startSSFUnix(srv2, addr)
+		source.startSSFUnix(srv2, addr)
 	})
 	close(srv.shutdown)
 
@@ -49,17 +51,21 @@ func TestMultipleListeners(t *testing.T) {
 
 	srv3 := &Server{}
 	srv3.shutdown = make(chan struct{})
-	startSSFUnix(srv3, addr)
+	source.startSSFUnix(srv3, addr)
 	close(srv3.shutdown)
 }
 
 func TestConnectUNIX(t *testing.T) {
-	srv := &Server{}
-	srv.shutdown = make(chan struct{})
+	srv := &Server{
+		shutdown: make(chan struct{}),
+		logger:   logrus.NewEntry(logrus.New()),
+		Statsd:   &statsd.NoOpClient{},
+	}
+	source := SsfMetricsSource{
+		logger: srv.logger,
+	}
 
-	dir, err := ioutil.TempDir("", "unix-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unix",
@@ -68,7 +74,7 @@ func TestConnectUNIX(t *testing.T) {
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
-	startSSFUnix(srv, addr)
+	source.startSSFUnix(srv, addr)
 
 	conns := make(chan struct{})
 	for i := 0; i < 5; i++ {
@@ -107,13 +113,16 @@ func TestConnectUNIX(t *testing.T) {
 }
 
 func TestConnectUNIXStatsd(t *testing.T) {
-	srv := &Server{}
-	srv.shutdown = make(chan struct{})
-	srv.metricMaxLength = 4096
+	srv := &Server{
+		shutdown:        make(chan struct{}),
+		logger:          logrus.NewEntry(logrus.New()),
+		metricMaxLength: 4096,
+	}
+	source := UdpMetricsSource{
+		logger: srv.logger,
+	}
 
-	dir, err := ioutil.TempDir("", "unix-domain-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unixgram",
@@ -127,7 +136,7 @@ func TestConnectUNIXStatsd(t *testing.T) {
 			return make([]byte, 4097)
 		},
 	}
-	startStatsdUnix(srv, addr, statsdPool)
+	source.startStatsdUnix(srv, addr, statsdPool)
 
 	conns := make(chan struct{})
 	for i := 0; i < 5; i++ {
@@ -166,7 +175,12 @@ func TestConnectUNIXStatsd(t *testing.T) {
 }
 
 func TestHealthCheckGRPC(t *testing.T) {
-	srv := &Server{}
+	srv := &Server{
+		logger: logrus.NewEntry(logrus.New()),
+	}
+	source := GrpcMetricsSource{
+		logger: srv.logger,
+	}
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "tcp",
@@ -175,7 +189,7 @@ func TestHealthCheckGRPC(t *testing.T) {
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)
-	grpcServer, _ := startGRPCTCP(srv, addr)
+	grpcServer, _ := source.startGRPCTCP(srv, addr)
 
 	conns := make(chan struct{})
 	for i := 0; i < 5; i++ {
@@ -203,8 +217,13 @@ func TestHealthCheckGRPC(t *testing.T) {
 }
 
 func TestConnectSSFGRPC(t *testing.T) {
-	srv := &Server{}
-	srv.SpanChan = make(chan *ssf.SSFSpan, 100)
+	srv := &Server{
+		logger:   logrus.NewEntry(logrus.New()),
+		SpanChan: make(chan *ssf.SSFSpan, 100),
+	}
+	source := GrpcMetricsSource{
+		logger: srv.logger,
+	}
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "tcp",
@@ -213,7 +232,7 @@ func TestConnectSSFGRPC(t *testing.T) {
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)
-	grpcServer, _ := startGRPCTCP(srv, addr)
+	grpcServer, _ := source.startGRPCTCP(srv, addr)
 
 	conns := make(chan struct{})
 	for i := 0; i < 5; i++ {
@@ -241,8 +260,13 @@ func TestConnectSSFGRPC(t *testing.T) {
 }
 
 func TestConnectDogstatsdGRPC(t *testing.T) {
-	srv := &Server{}
-	srv.SpanChan = make(chan *ssf.SSFSpan, 100)
+	srv := &Server{
+		logger:   logrus.NewEntry(logrus.New()),
+		SpanChan: make(chan *ssf.SSFSpan, 100),
+	}
+	source := GrpcMetricsSource{
+		logger: srv.logger,
+	}
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "tcp",
@@ -251,7 +275,7 @@ func TestConnectDogstatsdGRPC(t *testing.T) {
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)
-	grpcServer, _ := startGRPCTCP(srv, addr)
+	grpcServer, _ := source.startGRPCTCP(srv, addr)
 
 	conns := make(chan struct{})
 	for i := 0; i < 5; i++ {

@@ -58,6 +58,11 @@ func (m *metricExtractionSink) Name() string {
 	return "metric_extraction"
 }
 
+// Kind returns "metric_extraction".
+func (m *metricExtractionSink) Kind() string {
+	return "metric_extraction"
+}
+
 // Start is a no-op.
 func (m *metricExtractionSink) Start(*trace.Client) error {
 	return nil

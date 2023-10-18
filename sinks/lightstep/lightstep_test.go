@@ -1,6 +1,7 @@
 package lightstep
 
 import (
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -10,7 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/util"
 )
 
 type testLSTracer struct {
@@ -100,8 +103,19 @@ func (tls *testLSSpan) Log(data opentracing.LogData) {
 }
 
 func TestLSSinkConstructor(t *testing.T) {
-
-	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", logrus.New())
+	_, err := CreateSpanSink(nil, "lightstep", logrus.NewEntry(logrus.New()),
+		veneur.Config{}, LightStepSpanSinkConfig{
+			AccessToken: util.StringSecret{Value: "secret"},
+			CollectorHost: util.Url{
+				Value: &url.URL{
+					Scheme: "http",
+					Host:   "example.com",
+				},
+			},
+			ReconnectPeriod: 5 * time.Minute,
+			MaximumSpans:    1000,
+			NumClients:      1,
+		})
 	assert.NoError(t, err)
 }
 

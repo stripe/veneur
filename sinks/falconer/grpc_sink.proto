@@ -1,0 +1,10 @@
+syntax = "proto3";
+package falconer;
+
+import "ssf/sample.proto";
+
+message Empty {}
+
+service SpanSink {
+    rpc SendSpan(ssf.SSFSpan) returns (Empty);
+}

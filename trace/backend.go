@@ -7,7 +7,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/ssf"
 )
@@ -114,7 +113,7 @@ func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 		}
 	}
 
-	data, err := proto.Marshal(span)
+	data, err := span.Marshal()
 	if err != nil {
 		return err
 	}

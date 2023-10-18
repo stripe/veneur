@@ -3,7 +3,6 @@ package veneur
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
@@ -14,12 +13,12 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/forwardrpc"
-	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/matcher"
 	"google.golang.org/grpc/status"
 )
 
@@ -38,7 +37,6 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
-	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
 	if s.CountUniqueTimeseries {
@@ -49,7 +47,7 @@ func (s *Server) Flush(ctx context.Context) {
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
-		sink.FlushOtherSamples(span.Attach(ctx), samples)
+		sink.sink.FlushOtherSamples(span.Attach(ctx), samples)
 	}
 
 	go s.flushTraces(span.Attach(ctx))
@@ -78,26 +76,20 @@ func (s *Server) Flush(ctx context.Context) {
 	s.reportMetricsFlushCounts(ms)
 
 	wg := sync.WaitGroup{}
+	defer wg.Wait()
+
 	if s.IsLocal() {
 		wg.Add(1)
-		// Forward over gRPC or HTTP depending on the configuration
-		if s.forwardUseGRPC {
-			go func() {
-				s.forwardGRPC(span.Attach(ctx), tempMetrics)
-				wg.Done()
-			}()
-		} else {
-			go func() {
-				s.flushForward(span.Attach(ctx), tempMetrics)
-				wg.Done()
-			}()
-		}
+		go func() {
+			s.forward(span.Attach(ctx), tempMetrics)
+			wg.Done()
+		}()
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
 		s.reportGlobalReceivedProtocolMetrics()
 	}
 
-	// If there's nothing to flush, don't bother calling the plugins and stuff.
+	// Return early if there's nothing to flush.
 	if len(finalMetrics) == 0 {
 		return
 	}
@@ -108,7 +100,7 @@ func (s *Server) Flush(ctx context.Context) {
 			metric.Sinks = make(samplers.RouteInformation)
 			for _, config := range s.Config.MetricSinkRouting {
 				var sinks []string
-				if config.Match(metric.Name, metric.Tags) {
+				if matcher.Match(config.Match, metric.Name, metric.Tags) {
 					sinks = config.Sinks.Matched
 				} else {
 					sinks = config.Sinks.NotMatched
@@ -122,31 +114,136 @@ func (s *Server) Flush(ctx context.Context) {
 
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
-		go func(ms sinks.MetricSink) {
-			filteredMetrics := finalMetrics
-			if s.Config.Features.EnableMetricSinkRouting {
-				sinkName := ms.Name()
-				filteredMetrics = []samplers.InterMetric{}
-				for _, metric := range finalMetrics {
-					_, ok := metric.Sinks[sinkName]
-					if !ok {
-						continue
-					}
-					filteredMetrics = append(filteredMetrics, metric)
-				}
-			}
-			flushStart := time.Now()
-			err := ms.Flush(span.Attach(ctx), filteredMetrics)
-			span.Add(ssf.Timing(
-				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-				time.Nanosecond, map[string]string{"sink": ms.Name()}))
-			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
-			}
+		go func(sink internalMetricSink) {
+			s.flushSink(ctx, sink, finalMetrics)
 			wg.Done()
 		}(sink)
 	}
-	wg.Wait()
+}
+
+func (s *Server) flushSink(
+	ctx context.Context, sink internalMetricSink, metrics []samplers.InterMetric,
+) {
+	flushStart := time.Now()
+
+	skippedCount := int64(0)
+	maxNameLengthCount := int64(0)
+	maxTagsCount := int64(0)
+	maxTagLengthCount := int64(0)
+	flushedCount := int64(0)
+
+	sinkNameTag := "sink_name:" + sink.sink.Name()
+	sinkKindTag := "sink_kind:" + sink.sink.Kind()
+
+	filteredMetrics := metrics
+	if s.Config.Features.EnableMetricSinkRouting {
+		sinkName := sink.sink.Name()
+		filteredMetrics = []samplers.InterMetric{}
+	metricLoop:
+		for _, metric := range metrics {
+			_, ok := metric.Sinks[sinkName]
+			if !ok {
+				skippedCount += 1
+				continue metricLoop
+			}
+			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
+				s.Statsd.Count("dropped_metrics", 1, []string{
+					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_name_length", "veneurglobalonly:true",
+				}, 1)
+
+				maxNameLengthCount += 1
+				continue metricLoop
+			}
+
+			filteredTags := []string{}
+			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
+				filteredTags = metric.Tags
+			} else {
+			tagLoop:
+				for _, tag := range metric.Tags {
+					for _, tagMatcher := range sink.stripTags {
+						if tagMatcher.Match(tag) {
+							continue tagLoop
+						}
+					}
+					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+						s.Statsd.Count("dropped_metrics", 1, []string{
+							sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tag_length", "veneurglobalonly:true",
+						}, 1)
+						maxTagLengthCount += 1
+						continue metricLoop
+					}
+					filteredTags = append(filteredTags, tag)
+				}
+			}
+
+			// For any addTag, append our filteredTags, unless it would overwrite an existing tag
+			// Note: if a tag was removed from stripTags above, then that tag could effectively be overwritten
+			for k, v := range sink.addTags {
+				tag := fmt.Sprintf("%s:%s", k, v)
+				if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+					maxTagLengthCount += 1
+					continue metricLoop
+				}
+
+				skipped := false
+				for _, ft := range filteredTags {
+					if strings.HasPrefix(ft, k) {
+						skipped = true
+						break
+					}
+				}
+
+				if !skipped {
+					filteredTags = append(filteredTags, tag)
+				}
+			}
+
+			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
+				s.Statsd.Count("dropped_metrics", 1, []string{
+					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tags", "veneurglobalonly:true",
+				}, 1)
+				maxTagsCount += 1
+				continue metricLoop
+			}
+			metric.Tags = filteredTags
+			flushedCount += 1
+			filteredMetrics = append(filteredMetrics, metric)
+		}
+	}
+
+	s.Statsd.Count("flushed_metrics", skippedCount, []string{
+		sinkNameTag, sinkKindTag, "status:skipped", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxNameLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_name_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagsCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tags", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tag_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", flushedCount, []string{
+		sinkNameTag, sinkKindTag, "status:flushed", "veneurglobalonly:true",
+	}, 1)
+	flushResult, err := sink.sink.Flush(ctx, filteredMetrics)
+	flushCompleteMessageFields := logrus.Fields{
+		"sink_name":  sink.sink.Name(),
+		"sink_kind":  sink.sink.Kind(),
+		"flushed":    flushResult.MetricsFlushed,
+		"skipped":    flushResult.MetricsSkipped,
+		"dropped":    flushResult.MetricsDropped,
+		"duration_s": fmt.Sprintf("%.2f", time.Since(flushStart).Seconds()),
+	}
+	if err == nil {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
+	} else {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).WithError(err).Warn(sinks.FlushCompleteMessage)
+	}
+	s.Statsd.Timing(
+		sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+		[]string{sinkNameTag, sinkKindTag}, 1.0)
 }
 
 func (s *Server) tallyTimeseries() int64 {
@@ -194,7 +291,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	ms := metricsSummary{}
 
 	for i, w := range s.Workers {
-		log.WithField("worker", i).Debug("Flushing")
+		s.logger.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
 
@@ -377,108 +474,11 @@ func (s *Server) reportGlobalReceivedProtocolMetrics() {
 	s.Statsd.Count(perProtocolTotalMetricName, ssfGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_GRPC.String()}, 1.0)
 }
 
-func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.ClientFinish(s.TraceClient)
-	jmLength := 0
-	for _, wm := range wms {
-		jmLength += len(wm.globalCounters)
-		jmLength += len(wm.globalGauges)
-		jmLength += len(wm.histograms)
-		jmLength += len(wm.sets)
-		jmLength += len(wm.timers)
-	}
-
-	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
-	exportStart := time.Now()
-	for _, wm := range wms {
-		for _, count := range wm.globalCounters {
-			jm, err := count.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "counter",
-					"name":          count.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, gauge := range wm.globalGauges {
-			jm, err := gauge.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "gauge",
-					"name":          gauge.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, histo := range wm.histograms {
-			jm, err := histo.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "histogram",
-					"name":          histo.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, set := range wm.sets {
-			jm, err := set.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "set",
-					"name":          set.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, timer := range wm.timers {
-			jm, err := timer.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "timer",
-					"name":          timer.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			// the exporter doesn't know that these two are "different"
-			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-	}
-	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
-	s.Statsd.Count("forward.post_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
-	if len(jsonMetrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
-		return
-	}
-
-	// the error has already been logged (if there was one), so we only care
-	// about the success case
-	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, nil, log) == nil {
-		log.WithFields(logrus.Fields{
-			"metrics":     len(jsonMetrics),
-			"endpoint":    endpoint,
-			"forwardAddr": s.ForwardAddr,
-		}).Info("Completed forward to upstream Veneur")
-	}
-}
-
 func (s *Server) flushTraces(ctx context.Context) {
 	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
 		key, ok := keyI.(string)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":  keyI,
 				"type": reflect.TypeOf(keyI),
 			}).Error("received non-string key")
@@ -487,7 +487,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		value, ok := valueI.(*ssfServiceSpanMetrics)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"value": valueI,
 				"type":  reflect.TypeOf(valueI),
 			}).Error("received non-struct value")
@@ -496,7 +496,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		tags := strings.Split(key, ",")
 		if len(tags) != 2 {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":    key,
 				"length": len(tags),
 			}).Error("received key of incorrect format")
@@ -512,10 +512,11 @@ func (s *Server) flushTraces(ctx context.Context) {
 	s.SpanWorker.Flush()
 }
 
-// forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
-func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
+// forward forwards all input metrics to a downstream Veneur, over gRPC.
+func (s *Server) forward(
+	ctx context.Context, wms []WorkerMetrics,
+) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.TraceClient)
 
 	exportStart := time.Now()
@@ -523,7 +524,7 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	// Collect all of the forwardable metrics from the various WorkerMetrics.
 	var metrics []*metricpb.Metric
 	for _, wm := range wms {
-		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient)...)
+		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient, s.logger)...)
 	}
 
 	span.Add(
@@ -535,21 +536,20 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	)
 
 	if len(metrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
+		s.logger.Debug("Nothing to forward, skipping.")
 		return
 	}
 
-	entry := log.WithFields(logrus.Fields{
+	entry := s.logger.WithFields(logrus.Fields{
 		"metrics":     len(metrics),
 		"destination": s.ForwardAddr,
-		"protocol":    "grpc",
 		"grpcstate":   s.grpcForwardConn.GetState().String(),
 	})
 
 	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	grpcStart := time.Now()
-	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	err := forwardGrpc(ctx, c, metrics)
 	if err != nil {
 		if ctx.Err() != nil {
 			// We exceeded the deadline of the flush context.
@@ -573,4 +573,19 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 			map[string]string{"part": "grpc"}),
 		ssf.Count("forward.error_total", 0, nil),
 	)
+}
+
+func forwardGrpc(
+	ctx context.Context, client forwardrpc.ForwardClient,
+	metrics []*metricpb.Metric,
+) error {
+	sendMetricsClient, err := client.SendMetricsV2(ctx)
+	if err != nil {
+		return err
+	}
+	for _, metric := range metrics {
+		sendMetricsClient.Send(metric)
+	}
+	_, err = sendMetricsClient.CloseAndRecv()
+	return err
 }

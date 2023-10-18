@@ -7,6 +7,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
 )
 
 var (
@@ -34,14 +35,6 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	i, err := time.ParseDuration(*interval)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error":    err,
-			"interval": *interval,
-		}).Fatal("failed to parse interval")
-	}
-
 	statsClient, err := statsd.New(*statsHost, statsd.WithoutTelemetry())
 	if err != nil {
 		logrus.Fatal(err.Error())
@@ -57,9 +50,10 @@ func main() {
 	}
 
 	cache := new(countCache)
-	ticker := time.NewTicker(i)
+	ticker := time.NewTicker(cfg.interval)
 	for time := range ticker.C {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Add(i))
+		ctx, cancel := context.WithDeadline(
+			context.Background(), time.Add(cfg.interval))
 		statsdStats, err := collect(ctx, cfg, statsClient, cache)
 		if err == nil {
 			sendToStatsd(statsClient, *statsHost, statsdStats)
@@ -69,7 +63,7 @@ func main() {
 }
 
 func collect(
-	ctx context.Context, cfg prometheusConfig, statsClient *statsd.Client,
+	ctx context.Context, cfg *prometheusConfig, statsClient *statsd.Client,
 	cache *countCache,
 ) (<-chan []statsdStat, error) {
 	logrus.WithFields(logrus.Fields{
@@ -78,8 +72,13 @@ func collect(
 		"ignored_metrics": cfg.ignoredMetrics,
 	}).Debug("beginning collection")
 
-	prometheus, err := QueryPrometheus(
-		ctx, cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
+	source := &openmetrics.OpenMetricsSource{
+		Denylist:      cfg.ignoredMetrics,
+		HttpClient:    cfg.httpClient,
+		ScrapeTarget:  cfg.metricsHost,
+		ScrapeTimeout: cfg.interval,
+	}
+	prometheus, err := source.Query(ctx)
 	if err != nil {
 		statsClient.Incr("veneur.prometheus.connect_errors_total", nil, 1.0)
 		logrus.

@@ -7,16 +7,16 @@
           "value": "a_b_gauge"
         },
         {
-          "name": "foo",
-          "value": "bar"
-        },
-        {
           "name": "baz",
           "value": "qux"
         },
         {
-          "name": "corge",
-          "value": "grault"
+          "name": "foo",
+          "value": "bar"
+        },
+        {
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [
@@ -37,8 +37,8 @@
           "value": "bar"
         },
         {
-          "name": "corge",
-          "value": "grault"
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [
@@ -55,8 +55,8 @@
           "value": "a_b_status"
         },
         {
-          "name": "corge",
-          "value": "grault"
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [

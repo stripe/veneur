@@ -3,7 +3,6 @@ package trace
 import (
 	"context"
 	"io"
-	"math/rand"
 	"path"
 	"reflect"
 	"runtime"
@@ -12,10 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/stripe/veneur/v14/ssf"
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/mod/module"
+
+	"github.com/stripe/veneur/v14/internal/fastrand"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // Experimental
@@ -169,7 +169,7 @@ func (t *Trace) Add(samples ...*ssf.SSFSample) {
 // ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
-	packet, err := proto.Marshal(t.SSFSpan())
+	packet, err := t.SSFSpan().Marshal()
 	if err != nil {
 		return err
 	}
@@ -266,14 +266,9 @@ func SpanFromContext(c context.Context) *Trace {
 //
 // StartSpanFromContext is the recommended way to create trace spans in a
 // program.
-func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.StartSpanOption) (s *Span, c context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s = nil
-			c = ctx
-		}
-	}()
-
+func StartSpanFromContext(
+	ctx context.Context, name string, opts ...opentracing.StartSpanOption,
+) (s *Span, c context.Context) {
 	if name == "" {
 		pc, _, _, ok := runtime.Caller(1)
 		details := runtime.FuncForPC(pc)
@@ -327,29 +322,28 @@ func (t *Trace) contextAsParent() *spanContext {
 // StartTrace is called by to create the root-level span
 // for a trace
 func StartTrace(resource string) *Trace {
-	traceID := proto.Int64(rand.Int63())
+	traceID := fastrand.Int63()
 
 	t := &Trace{
-		TraceID:  *traceID,
-		SpanID:   *traceID,
+		TraceID:  traceID,
+		SpanID:   traceID,
 		ParentID: 0,
 		Resource: resource,
 		Tags:     map[string]string{},
+		Start:    time.Now(),
 	}
 
-	t.Start = time.Now()
 	return t
 }
 
 // StartChildSpan creates a new Span with the specified parent
 func StartChildSpan(parent *Trace) *Trace {
-	spanID := proto.Int64(rand.Int63())
 	span := &Trace{
-		SpanID: *spanID,
+		SpanID: fastrand.Int63(),
+		Start:  time.Now(),
 	}
 
 	span.SetParent(parent)
-	span.Start = time.Now()
 
 	return span
 }

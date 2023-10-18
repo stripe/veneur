@@ -39,28 +39,6 @@ type S3Sink struct {
 	Svc      s3iface.S3API
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(config *veneur.Config) {
-	if config.AwsS3Bucket == "" {
-		return
-	}
-	config.MetricSinks = append(config.MetricSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
-		Kind: "s3",
-		Name: "s3",
-		Config: S3SinkConfig{
-			AccessKeyID:     config.AwsAccessKeyID,
-			S3Bucket:        config.AwsS3Bucket,
-			Region:          config.AwsRegion,
-			SecretAccessKey: config.AwsSecretAccessKey,
-		},
-	})
-}
-
 // ParseConfig decodes the map config for an S3 sink into an S3SinkConfig
 // struct.
 func ParseConfig(
@@ -123,9 +101,7 @@ func (p *S3Sink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (p *S3Sink) Flush(
-	ctx context.Context, metrics []samplers.InterMetric,
-) error {
+func (p *S3Sink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
@@ -136,7 +112,7 @@ func (p *S3Sink) Flush(
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Could not marshal metrics before posting to s3")
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 
 	err = p.S3Post(p.Hostname, csv, tsvGzFt)
@@ -145,11 +121,11 @@ func (p *S3Sink) Flush(
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Error posting to s3")
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 
-	p.Logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
-	return nil
+	p.Logger.WithField("metrics", len(metrics)).Info("flushed")
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (p *S3Sink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
@@ -158,6 +134,10 @@ func (p *S3Sink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
 
 func (p *S3Sink) Name() string {
 	return p.name
+}
+
+func (p *S3Sink) Kind() string {
+	return "s3"
 }
 
 type filetype string

@@ -14,7 +14,8 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	rtdebug "runtime/debug"
+	"runtime/debug"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,40 +23,31 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/getsentry/sentry-go"
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/pkg/profile"
 
-	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
-	"github.com/stripe/veneur/v14/sinks/falconer"
-	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sources"
+	"github.com/stripe/veneur/v14/sources/proxy"
 	"github.com/stripe/veneur/v14/ssf"
-	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/build"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
-// VERSION stores the current veneur version.
-// It must be a var so it can be set at link time.
-var VERSION = defaultLinkValue
-
-var BUILD_DATE = defaultLinkValue
-
-const defaultLinkValue = "dirty"
-
 var profileStartOnce = sync.Once{}
-
-var log = logrus.StandardLogger()
 
 var tracer = trace.GlobalTracer
 
@@ -74,7 +66,7 @@ type SourceTypes = map[string]struct {
 	) (sources.Source, error)
 	// Parses the config for the source into a format that is validated and safe
 	// to log.
-	ParseConfig func(interface{}) (ParsedSourceConfig, error)
+	ParseConfig func(string, interface{}) (ParsedSourceConfig, error)
 }
 
 type SpanSinkTypes = map[string]struct {
@@ -97,18 +89,23 @@ type MetricSinkTypes = map[string]struct {
 	ParseConfig func(string, interface{}) (MetricSinkConfig, error)
 }
 
+type HttpCustomHandlers = map[string]func(w http.ResponseWriter, r *http.Request)
+
 // Config used to create a new server.
 type ServerConfig struct {
-	Config          Config
-	Logger          *logrus.Logger
-	MetricSinkTypes MetricSinkTypes
-	SourceTypes     SourceTypes
-	SpanSinkTypes   SpanSinkTypes
+	Config             Config
+	Logger             *logrus.Logger
+	MetricSinkTypes    MetricSinkTypes
+	SourceTypes        SourceTypes
+	SpanSinkTypes      SpanSinkTypes
+	HttpCustomHandlers HttpCustomHandlers
+	Statsd             *statsd.Client
 }
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Config                Config
+	logger                *logrus.Entry
 	Workers               []*Worker
 	EventWorker           *EventWorker
 	SpanChan              chan *ssf.SSFSpan
@@ -116,25 +113,25 @@ type Server struct {
 	SpanWorkerGoroutines  int
 	CountUniqueTimeseries bool
 
-	Statsd *scopedstatsd.ScopedClient
+	Statsd scopedstatsd.Client
 
-	Hostname  string
-	Tags      []string
-	TagsAsMap map[string]string
+	Hostname string
 
 	HTTPClient *http.Client
 
 	HTTPAddr         string
 	numListeningHTTP *int32 // An atomic boolean for whether or not the HTTP server is running
 
-	ForwardAddr    string
-	forwardUseGRPC bool
+	HttpCustomHandlers HttpCustomHandlers
+
+	ForwardAddr string
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
+	FlushOnShutdown     bool
 	Interval            time.Duration
 	synchronizeInterval bool
 	numReaders          int
@@ -154,9 +151,9 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	sources     []sources.Source
+	sources     []internalSource
 	spanSinks   []sinks.SpanSink
-	metricSinks []sinks.MetricSink
+	metricSinks []internalMetricSink
 
 	TraceClient *trace.Client
 
@@ -165,7 +162,7 @@ type Server struct {
 
 	// gRPC server
 	grpcListenAddress string
-	grpcServer        *importsrv.Server
+	grpcServer        *proxy.Server
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
@@ -174,6 +171,20 @@ type Server struct {
 	lastFlushUnix  int64
 
 	parser samplers.Parser
+}
+
+type internalSource struct {
+	source sources.Source
+	tags   []string
+}
+
+type internalMetricSink struct {
+	sink          sinks.MetricSink
+	maxNameLength int
+	maxTagLength  int
+	maxTags       int
+	stripTags     []matcher.TagMatcher
+	addTags       map[string]string
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -218,11 +229,6 @@ func (p ProtocolType) String() string {
 type ssfServiceSpanMetrics struct {
 	ssfSpansReceivedTotal     int64
 	ssfRootSpansReceivedTotal int64
-}
-
-// SetLogger sets the default logger in veneur to the passed value.
-func SetLogger(logger *logrus.Logger) {
-	log = logger
 }
 
 func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
@@ -319,16 +325,46 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
+type ingest struct {
+	server *Server
+	tags   []string
+}
+
+var _ sources.Ingest = &ingest{}
+
+func (ingest *ingest) IngestMetric(metric *samplers.UDPMetric) {
+	metric.Tags = append(metric.Tags, ingest.tags...)
+	ingest.server.ingestMetric(metric)
+}
+
+func (ingest *ingest) IngestMetricProto(metric *metricpb.Metric) {
+	metric.Tags = append(metric.Tags, ingest.tags...)
+
+	// Compute a 32-bit hash from the input metric based on its name, type, and
+	// tags. The fnv1a package is used as opposed to fnv from the standard
+	// library, as it avoids allocations by not using the hash.Hash interface and
+	// by avoiding string to []byte conversions.
+	h := fnv1a.HashString32(metric.Name)
+	h = fnv1a.AddString32(h, metric.Type.String())
+	for _, tag := range metric.Tags {
+		h = fnv1a.AddString32(h, tag)
+	}
+
+	workerIndex := h % uint32(len(ingest.server.Workers))
+	ingest.server.Workers[workerIndex].ImportMetricChan <- metric
+}
+
 func (server *Server) createSources(
 	logger *logrus.Logger, config *Config, sourceTypes SourceTypes,
-) ([]sources.Source, error) {
-	sources := []sources.Source{}
+) ([]internalSource, error) {
+	sources := []internalSource{}
 	for index, sourceConfig := range config.Sources {
 		sourceFactory, ok := sourceTypes[sourceConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown source kind %s; skipping.", sourceConfig.Kind)
 		}
-		parsedSourceConfig, err := sourceFactory.ParseConfig(sourceConfig.Config)
+		parsedSourceConfig, err :=
+			sourceFactory.ParseConfig(sourceConfig.Name, sourceConfig.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +377,10 @@ func (server *Server) createSources(
 		if err != nil {
 			return nil, err
 		}
-		sources = append(sources, source)
+		sources = append(sources, internalSource{
+			source: source,
+			tags:   sourceConfig.Tags,
+		})
 	}
 	return sources, nil
 }
@@ -376,8 +415,8 @@ func (server *Server) createSpanSinks(
 
 func (server *Server) createMetricSinks(
 	logger *logrus.Logger, config *Config, sinkTypes MetricSinkTypes,
-) ([]sinks.MetricSink, error) {
-	sinks := []sinks.MetricSink{}
+) ([]internalMetricSink, error) {
+	sinks := []internalMetricSink{}
 	for index, sinkConfig := range config.MetricSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
@@ -398,9 +437,23 @@ func (server *Server) createMetricSinks(
 		if err != nil {
 			return nil, err
 		}
-		sinks = append(sinks, sink)
+		sinks = append(sinks, internalMetricSink{
+			sink:          sink,
+			maxNameLength: sinkConfig.MaxNameLength,
+			maxTagLength:  sinkConfig.MaxTagLength,
+			maxTags:       sinkConfig.MaxTags,
+			stripTags:     sinkConfig.StripTags,
+			addTags:       sinkConfig.AddTags,
+		})
 	}
 	return sinks, nil
+}
+
+func max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // NewFromConfig creates a new veneur server from a configuration
@@ -411,70 +464,63 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	conf := config.Config
 
 	ret := &Server{
-		Config:   conf,
-		Interval: conf.Interval,
+		Config: conf,
+		// Control whether Veneur should emit metric
+		// "veneur.flush.unique_timeseries_total", which may come at a slight
+		// performance hit to workers.
+		CountUniqueTimeseries: conf.CountUniqueTimeseries,
+		// This must come before worker initialization. We need to initialize
+		// workers with state from *Server.IsWorker.
+		enableProfiling:      conf.EnableProfiling,
+		ForwardAddr:          conf.ForwardAddress,
+		grpcListenAddress:    conf.GrpcAddress,
+		Hostname:             conf.Hostname,
+		HistogramPercentiles: conf.Percentiles,
+		HTTPAddr:             conf.HTTPAddress,
+		HTTPClient: &http.Client{
+			// make sure that POSTs to datadog do not overflow the flush interval
+			Timeout: conf.Interval * 9 / 10,
+			Transport: &http.Transport{
+				// If we're idle more than one interval something is up
+				IdleConnTimeout: conf.Interval * 2,
+			},
+		},
+		HttpCustomHandlers: config.HttpCustomHandlers,
+		Interval:           conf.Interval,
+		logger:             logrus.NewEntry(config.Logger),
+		metricMaxLength:    conf.MetricMaxLength,
+		numListeningHTTP:   new(int32),
+		numReaders:         conf.NumReaders,
+		parser:             samplers.NewParser(conf.ExtendTags),
+		RcvbufBytes:        conf.ReadBufferSizeBytes,
+		// closed in Shutdown; Same approach and http.Shutdown
+		shutdown:            make(chan struct{}),
+		traceMaxLengthBytes: conf.TraceMaxLengthBytes,
+		SpanChan:            make(chan *ssf.SSFSpan, conf.SpanChannelCapacity),
+		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
+		synchronizeInterval: conf.SynchronizeWithInterval,
+		// Allocate the slice, we'll fill it with workers later.
+		Workers: make([]*Worker, max(1, conf.NumWorkers)),
 	}
 
-	ret.Hostname = conf.Hostname
-	ret.Tags = conf.Tags
-
-	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
-
-	ret.synchronizeInterval = conf.SynchronizeWithInterval
-
-	ret.TagsAsMap = mappedTags
-
-	ret.parser = samplers.NewParser(conf.ExtendTags)
-
-	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
-	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
-
-	transport := &http.Transport{
-		IdleConnTimeout: ret.Interval * 2, // If we're idle more than one interval something is up
-	}
-
-	ret.HTTPClient = &http.Client{
-		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.Interval * 9 / 10,
-		Transport: transport,
-	}
-
-	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
-	if err != nil {
-		return ret, err
-	}
-	stats.Namespace = "veneur."
-
 	scopes, err := scopesFromConfig(conf)
 	if err != nil {
 		return ret, err
 	}
-	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
+	ret.Statsd = scopedstatsd.NewClient(config.Statsd, conf.VeneurMetricsAdditionalTags, scopes)
 
-	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
-		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+		trace.ReportStatistics(config.Statsd, 1*time.Second, []string{"ssf_format:internal"}),
 		normalizeSpans(conf),
 	)
 	if err != nil {
 		return ret, err
-	}
-
-	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
-	// and no-op the methods.
-	if conf.SentryDsn.Value != "" {
-		err = sentry.Init(sentry.ClientOptions{
-			Dsn: conf.SentryDsn.Value,
-		})
-		if err != nil {
-			return ret, err
-		}
 	}
 
 	if conf.Debug {
@@ -486,7 +532,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
 	}
 
-	log.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"MutexProfileFraction":         conf.MutexProfileFraction,
 		"previousMutexProfileFraction": mpf,
 	}).Info("Set mutex profile fraction")
@@ -494,53 +540,14 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
-	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
+	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
-	if conf.EnableProfiling {
-		ret.enableProfiling = true
-	}
-
-	// This is a check to ensure that we don't repeatedly add a hook
-	// to the "global" log instance on repeated calls to `NewFromConfig`
-	// such as those made in testing. By skipping this we avoid a race
-	// condition in logrus discussed here:
-	// https://github.com/sirupsen/logrus/issues/295
-	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
-		logger.AddHook(sentryHook{
-			hostname: ret.Hostname,
-			lv: []logrus.Level{
-				logrus.ErrorLevel,
-				logrus.FatalLevel,
-				logrus.PanicLevel,
-			},
-		})
-	}
-
-	// After log hooks are configured, if any further errors are
-	// found during setup we should use logger.Fatal or
-	// logger.Panic, because that will give us breakage monitoring
-	// through Sentry.
-	numWorkers := 1
-	if conf.NumWorkers > 1 {
-		numWorkers = conf.NumWorkers
-	}
-	logger.WithField("number", numWorkers).Info("Preparing workers")
-	// Allocate the slice, we'll fill it with workers later.
-	ret.Workers = make([]*Worker, numWorkers)
-	ret.numReaders = conf.NumReaders
-
-	// This must come before worker initialization. We need to
-	// initialize workers with state from *Server.IsWorker.
-	ret.ForwardAddr = conf.ForwardAddress
-
-	// Control whether Veneur should emit metric
-	// "veneur.flush.unique_timeseries_total", which may come at a
-	// slight performance hit to workers.
-	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
+	ret.FlushOnShutdown = conf.FlushOnShutdown
 
 	// Use the pre-allocated Workers slice to know how many to start.
+	logger.WithField("number", len(ret.Workers)).Info("Preparing workers")
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, logger, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -551,18 +558,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
-
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr.Value)
@@ -587,12 +582,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
 	}
-
-	ret.metricMaxLength = conf.MetricMaxLength
-	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
-	ret.RcvbufBytes = conf.ReadBufferSizeBytes
-	ret.HTTPAddr = conf.HTTPAddress
-	ret.numListeningHTTP = new(int32)
 
 	if conf.TLSKey.Value != "" {
 		if conf.TLSCertificate == "" {
@@ -632,92 +621,64 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Configure tracing sinks if we are listening for ssf
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
-
 		trace.Enable()
 
-		// configure Lightstep as a Span Sink
-		if conf.LightstepAccessToken.Value != "" {
-
-			var lsSink sinks.SpanSink
-			lsSink, err = lightstep.NewLightStepSpanSink(
-				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
-				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken.Value, log,
-			)
-			if err != nil {
-				return ret, err
-			}
-			ret.spanSinks = append(ret.spanSinks, lsSink)
-
-			logger.Info("Configured Lightstep span sink")
-		}
-
-		if conf.FalconerAddress != "" {
-			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, falsink)
-			logger.Info("Configured Falconer trace sink")
-		}
-
 		// Set up as many span workers as we need:
-		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
 			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
+		} else {
+			ret.SpanWorkerGoroutines = 1
 		}
 	}
 
-	customMetricSinks, err :=
+	ret.metricSinks, err =
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	}
-	customSpanSinks, err :=
+	ret.spanSinks, err =
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateSpanSinks {
-		ret.spanSinks = customSpanSinks
-	} else {
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
 	}
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(
+		processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName,
+		ret.TraceClient, logger, &ret.parser)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	// After all sinks are initialized, set the list of tags to exclude
-	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
+	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
-	// closed in Shutdown; Same approach and http.Shutdown
-	ret.shutdown = make(chan struct{})
 	if conf.HTTPQuit {
 		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
 		ret.httpQuit = true
 	}
 
-	ret.forwardUseGRPC = conf.ForwardUseGrpc
-
-	// Setup the grpc server if it was configured
-	ret.grpcListenAddress = conf.GrpcAddress
-	if ret.grpcListenAddress != "" {
-		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			ingesters[i] = worker
-		}
-
-		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
-	}
-
 	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
 	if err != nil {
 		return nil, err
+	}
+
+	// Setup the grpc server if it was configured
+	if ret.grpcListenAddress != "" {
+		ret.grpcServer = proxy.New(ret.grpcListenAddress,
+			config.Logger.WithField("source", "proxy"),
+			proxy.WithTraceClient(ret.TraceClient))
+
+		ret.sources = append(ret.sources, internalSource{
+			source: ret.grpcServer,
+			tags:   []string{},
+		})
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics
@@ -731,33 +692,33 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ssfUnixReceivedTotal:       0,
 			ssfGrpcReceivedTotal:       0,
 		}
-		log.Info("Tracking listening per protocol metrics on global instance")
+		logger.Info("Tracking listening per protocol metrics on global instance")
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
-
-	return ret, err
+	return ret, nil
 }
 
 // Start spins up the Server to do actual work, firing off goroutines for
 // various workers and utilities.
 func (s *Server) Start() {
-	log.WithField("version", VERSION).Info("Starting server")
+	s.logger.WithField("version", build.VERSION).Info("Starting server")
 
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap)
+	s.SpanWorker = NewSpanWorker(
+		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.logger)
 
 	go func() {
-		log.Info("Starting Event worker")
+		s.logger.Info("Starting Event worker")
 		defer func() {
 			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
 
-	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
+	s.logger.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
@@ -788,24 +749,32 @@ func (s *Server) Start() {
 	}
 
 	for _, sink := range s.metricSinks {
-		logrus.WithField("sink", sink.Name()).Info("Starting metric sink")
-		if err := sink.Start(s.TraceClient); err != nil {
+		logrus.WithField("sink", sink.sink.Name()).Info("Starting metric sink")
+		if err := sink.sink.Start(s.TraceClient); err != nil {
 			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
 		}
 	}
 
 	// Read Metrics Forever!
 	concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
+	statsdSource := UdpMetricsSource{
+		logger: s.logger,
+	}
 	for _, addr := range s.StatsdListenAddrs {
-		concreteAddrs = append(concreteAddrs, StartStatsd(s, addr, statsdPool))
+		concreteAddrs = append(
+			concreteAddrs, statsdSource.StartStatsd(s, addr, statsdPool))
 	}
 	s.StatsdListenAddrs = concreteAddrs
 
 	// Read Traces Forever!
+	ssfSource := SsfMetricsSource{
+		logger: s.logger,
+	}
 	if len(s.SSFListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
 		for _, addr := range s.SSFListenAddrs {
-			concreteAddrs = append(concreteAddrs, StartSSF(s, addr, tracePool))
+			concreteAddrs = append(
+				concreteAddrs, ssfSource.StartSSF(s, addr, tracePool))
 		}
 		s.SSFListenAddrs = concreteAddrs
 	} else {
@@ -815,8 +784,11 @@ func (s *Server) Start() {
 	// Read grpc traces forever!
 	if len(s.GRPCListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+		grpcSource := GrpcMetricsSource{
+			logger: s.logger,
+		}
 		for _, addr := range s.GRPCListenAddrs {
-			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
+			concreteAddrs = append(concreteAddrs, grpcSource.StartGRPC(s, addr))
 		}
 		//If there are already ssf listen addresses then append the grpc ones otherwise just use the grpc ones
 		if len(s.SSFListenAddrs) > 0 {
@@ -836,14 +808,23 @@ func (s *Server) Start() {
 	}
 
 	// Initialize a gRPC connection for forwarding
-	if s.forwardUseGRPC {
-		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	var err error
+	if s.Config.Tls != nil && s.Config.Tls.CaFile != "" && s.Config.Tls.CertFile != "" && s.Config.Tls.KeyFile != "" {
+		var tlsConfig *tls.Config
+		tlsConfig, err = s.Config.Tls.GetTlsConfig()
 		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
-				"forwardAddr": s.ForwardAddr,
-			}).Fatal("Failed to initialize a gRPC connection for forwarding")
+			s.logger.WithError(err).Fatal("failed to parse tls config")
 		}
+		s.grpcForwardConn, err = grpc.Dial(
+			s.ForwardAddr,
+			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	} else {
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	}
+	if err != nil {
+		s.logger.WithError(err).WithFields(logrus.Fields{
+			"forwardAddr": s.ForwardAddr,
+		}).Fatal("Failed to initialize a gRPC connection for forwarding")
 	}
 
 	// Flush every Interval forever!
@@ -918,8 +899,8 @@ func (s *Server) FlushWatchdog() {
 			// times, we're stuck - panic because that's a
 			// bug.
 			if since > time.Duration(s.stuckIntervals)*s.Interval {
-				rtdebug.SetTraceback("all")
-				log.WithFields(logrus.Fields{
+				debug.SetTraceback("all")
+				s.logger.WithFields(logrus.Fields{
 					"last_flush":       last,
 					"missed_intervals": s.stuckIntervals,
 					"time_since":       since,
@@ -978,7 +959,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := s.parser.ParseEvent(packet)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
@@ -989,27 +970,44 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := s.parser.ParseServiceCheck(packet)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
+		s.ingestMetric(svcheck)
 	} else {
-		metric, err := s.parser.ParseMetric(packet)
+		err := s.parser.ParseMetric(packet, s.ingestMetric)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	return nil
+}
+
+// Ingests a metric into Veneur. This method ensures that the Digest field is
+// set for the metric.
+func (s *Server) ingestMetric(metric *samplers.UDPMetric) {
+	// The Digtest field may be unset (i.e. zero) when IngestMetric is called from
+	// custom metric sources; if it is zero, we compute the value.
+	if metric.Digest == 0 {
+		hash := fnv1a.Init32
+		hash = fnv1a.AddString32(hash, metric.Name)
+		hash = fnv1a.AddString32(hash, metric.Type)
+		sort.Strings(metric.Tags)
+		metric.JoinedTags = strings.Join(metric.Tags, ",")
+		hash = fnv1a.AddString32(hash, metric.JoinedTags)
+		metric.Digest = hash
+	}
+	workerIndex := metric.Digest % uint32(len(s.Workers))
+	s.Workers[workerIndex].PacketChan <- *metric
 }
 
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
@@ -1021,7 +1019,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
-		log.Warn("received zero-length trace packet")
+		s.logger.Warn("received zero-length trace packet")
 		return
 	}
 
@@ -1031,7 +1029,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	if err != nil {
 		reason := "reason:" + err.Error()
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		log.WithError(err).Warn("ParseSSF")
+		s.logger.WithError(err).Warn("ParseSSF")
 		return
 	}
 	// we want to keep track of this, because it's a client problem, but still
@@ -1039,7 +1037,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	if span.Id == 0 {
 		reason := "reason:" + "empty_id"
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		log.Warn("HandleTracePacket: Span ID is zero")
+		s.logger.Debug("HandleTracePacket: Span ID is zero")
 	}
 
 	s.handleSSF(span, "packet", protocolType)
@@ -1064,7 +1062,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 		// allocation and more expensive operation in the typical case
 		metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
 		if metrics == nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"service":   span.Service,
 				"ssfFormat": ssfFormat,
 			}).Error("found nil value in ssfInternalMetrics map")
@@ -1073,8 +1071,8 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 
 	metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
 	if !ok {
-		log.WithField("type", reflect.TypeOf(metrics)).Error()
-		log.WithFields(logrus.Fields{
+		s.logger.WithField("type", reflect.TypeOf(metrics)).Error()
+		s.logger.WithFields(logrus.Fields{
 			"type":      reflect.TypeOf(metrics),
 			"service":   span.Service,
 			"ssfFormat": ssfFormat,
@@ -1100,7 +1098,7 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP metrics socket")
+			s.logger.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
 		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UDP)
@@ -1142,10 +1140,12 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 		if err != nil {
 			select {
 			case <-s.shutdown:
-				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				s.logger.WithError(err).Info(
+					"Ignoring ReadFrom error while shutting down")
 				return
 			default:
-				log.WithError(err).Error("Error reading packet from Unix domain socket")
+				s.logger.WithError(err).Error(
+					"Error reading packet from Unix domain socket")
 				continue
 			}
 		}
@@ -1160,7 +1160,7 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 	// own function?
 	p := packetPool.Get().([]byte)
 	if len(p) == 0 {
-		log.WithField("len", len(p)).Fatal(
+		s.logger.WithField("len", len(p)).Fatal(
 			"packetPool making empty slices: trace_max_length_bytes must be >= 0")
 	}
 	packetPool.Put(p)
@@ -1174,10 +1174,10 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 			// socket, which returns an error, so let's handle it here:
 			select {
 			case <-s.shutdown:
-				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				s.logger.WithError(err).Info("Ignoring ReadFrom error while shutting down")
 				return
 			default:
-				log.WithError(err).Error("Error reading from UDP trace socket")
+				s.logger.WithError(err).Error("Error reading from UDP trace socket")
 				continue
 			}
 		}
@@ -1209,7 +1209,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 				return
 			}
 			if protocol.IsFramingError(err) {
-				log.WithError(err).
+				s.logger.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
 					Info("Frame error reading from SSF connection. Closing.")
 				tags = append(tags, []string{"packet_type:unknown", "reason:framing"}...)
@@ -1217,7 +1217,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 				return
 			}
 			// Non-frame errors means we can continue reading:
-			log.WithError(err).
+			s.logger.WithError(err).
 				WithField("remote", serverConn.RemoteAddr()).
 				Error("Error processing an SSF frame")
 			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
@@ -1235,12 +1235,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}()
 
 	defer func() {
-		log.WithField("peer", conn.RemoteAddr()).Debug("Closing TCP connection")
+		s.logger.WithField("peer", conn.RemoteAddr()).Debug("Closing TCP connection")
 		err := conn.Close()
 		metrics.ReportOne(s.TraceClient, ssf.Count("tcp.disconnects", 1, nil))
 		if err != nil {
 			// most often "write: broken pipe"; not really an error
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"peer":          conn.RemoteAddr(),
 			}).Info("TCP close failed")
@@ -1262,7 +1262,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 			// usually io.EOF or "read: connection reset by peer"; not really errors
 			// it can also be caused by certificate authentication problems
 			metrics.ReportOne(s.TraceClient, ssf.Count("tcp.tls_handshake_failures", 1, nil))
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"peer":          conn.RemoteAddr(),
 			}).Info("TLS Handshake failed")
@@ -1275,12 +1275,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if len(state.PeerCertificates) > 0 {
 			clientCert = state.PeerCertificates[0].Subject.ToRDNSequence()
 		}
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			"peer":        conn.RemoteAddr(),
 			"client_cert": clientCert,
 		}).Debug("Starting TLS connection")
 	} else {
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			"peer": conn.RemoteAddr(),
 		}).Debug("Starting TCP connection")
 	}
@@ -1298,14 +1298,14 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters
-			log.WithField("peer", conn.RemoteAddr()).Warn(
+			s.logger.WithField("peer", conn.RemoteAddr()).Warn(
 				"Error parsing packet; closing TCP connection")
 			return
 		}
 	}
 	if buf.Err() != nil {
 		// usually "read: connection reset by peer" or "i/o timeout"
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: buf.Err(),
 			"peer":          conn.RemoteAddr(),
 		}).Info("Error reading from TCP client")
@@ -1320,10 +1320,10 @@ func (s *Server) ReadTCPSocket(listener net.Listener) {
 			select {
 			case <-s.shutdown:
 				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
-				log.WithError(err).Info("Ignoring Accept error while shutting down")
+				s.logger.WithError(err).Info("Ignoring Accept error while shutting down")
 				return
 			default:
-				log.WithError(err).Fatal("TCP accept failed")
+				s.logger.WithError(err).Fatal("TCP accept failed")
 			}
 		}
 
@@ -1344,26 +1344,21 @@ func (s *Server) Serve() {
 	}
 
 	for _, source := range s.sources {
-		go func(source sources.Source) {
-			source.Start()
+		go func(source internalSource) {
+			source.source.Start(&ingest{
+				server: s,
+				tags:   source.tags,
+			})
 			done <- struct{}{}
 		}(source)
-	}
-
-	if s.grpcListenAddress != "" {
-		go func() {
-			s.gRPCServe()
-			done <- struct{}{}
-		}()
 	}
 
 	// wait until at least one of the servers has shut down
 	<-done
 	graceful.Shutdown()
 	for _, source := range s.sources {
-		source.Stop()
+		source.source.Stop()
 	}
-	s.gRPCStop()
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -1394,7 +1389,7 @@ func (s *Server) HTTPServe() {
 			profileStopOnce.Do(prf.Stop)
 		}
 
-		log.Info("Terminating HTTP listener")
+		s.logger.Info("Terminating HTTP listener")
 	})
 
 	// Ensure that the server responds to SIGUSR2 even
@@ -1402,7 +1397,7 @@ func (s *Server) HTTPServe() {
 	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
 	gracefulSocket := graceful.WrapListener(httpSocket)
-	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
+	s.logger.WithField("address", s.HTTPAddr).Info("HTTP server listening")
 
 	// Signal that the HTTP server is starting
 	atomic.AddInt32(s.numListeningHTTP, 1)
@@ -1410,63 +1405,28 @@ func (s *Server) HTTPServe() {
 	bind.Ready()
 
 	if err := http.Serve(gracefulSocket, s.Handler()); err != nil {
-		log.WithError(err).Error("HTTP server shut down due to error")
+		s.logger.WithError(err).Error("HTTP server shut down due to error")
 	}
-	log.Info("Stopped HTTP server")
+	s.logger.Info("Stopped HTTP server")
 
 	graceful.Shutdown()
-}
-
-// gRPCServe starts the gRPC server and blocks until an error is encountered,
-// or the server is shutdown.
-//
-// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
-// As long as both are running this is actually fine, as Serve will stop
-// the gRPC server when the HTTP one exits.  When running just gRPC however,
-// the signal handling won't work.
-func (s *Server) gRPCServe() {
-	entry := log.WithFields(logrus.Fields{"address": s.grpcListenAddress})
-	entry.Info("Starting gRPC server")
-	if err := s.grpcServer.Serve(s.grpcListenAddress); err != nil {
-		entry.WithError(err).Error("gRPC server was not shut down cleanly")
-	}
-
-	entry.Info("Stopped gRPC server")
-}
-
-// Try to perform a graceful stop of the gRPC server.  If it takes more than
-// 10 seconds, timeout and force-stop.
-func (s *Server) gRPCStop() {
-	if s.grpcServer == nil {
-		return
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		s.grpcServer.GracefulStop()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
-		s.grpcServer.Stop()
-	}
 }
 
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
-	log.Info("Shutting down server gracefully")
+	s.logger.Info("Shutting down server gracefully")
 	close(s.shutdown)
+	if s.FlushOnShutdown {
+		ctx, cancel := context.WithTimeout(context.Background(), s.Interval)
+		s.Flush(ctx)
+		cancel()
+	}
 	graceful.Shutdown()
 	for _, source := range s.sources {
-		source.Stop()
+		source.source.Stop()
 	}
-	s.gRPCStop()
 
 	// Close the gRPC connection for forwarding
 	if s.grpcForwardConn != nil {
@@ -1493,16 +1453,19 @@ func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 }
 
 // Set the list of tags to exclude on each sink
-func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, spanSinks []sinks.SpanSink) {
+func (server *Server) setSinkExcludedTags(
+	excludeRules []string, metricSinks []internalMetricSink,
+	spanSinks []sinks.SpanSink,
+) {
 	type excludableSink interface {
 		SetExcludedTags([]string)
 	}
 
 	for _, sink := range metricSinks {
-		if s, ok := sink.(excludableSink); ok {
-			excludedTags := generateExcludedTags(excludeRules, sink.Name())
-			log.WithFields(logrus.Fields{
-				"sink":         sink.Name(),
+		if s, ok := sink.sink.(excludableSink); ok {
+			excludedTags := generateExcludedTags(excludeRules, sink.sink.Name())
+			server.logger.WithFields(logrus.Fields{
+				"sink":         sink.sink.Name(),
 				"excludedTags": excludedTags,
 			}).Info("Setting excluded tags on metric sink")
 			s.SetExcludedTags(excludedTags)
@@ -1512,7 +1475,7 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, 
 	for _, sink := range spanSinks {
 		if s, ok := sink.(excludableSink); ok {
 			excludedTags := generateExcludedTags(excludeRules, sink.Name())
-			log.WithFields(logrus.Fields{
+			server.logger.WithFields(logrus.Fields{
 				"sink":         sink.Name(),
 				"excludedTags": excludedTags,
 			}).Info("Setting excluded tags on span sink")

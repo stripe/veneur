@@ -52,10 +52,6 @@ tls_authority_certificate: ""
 #forward_address: "veneur.example.com"
 forward_address: ""
 
-# Whether or not to forward to an upstream Veneur over gRPC.  If this is false
-# or unset, HTTP will be used.
-forward_use_grpc: false
-
 # How often to flush. When flushing to Datadog, changing this
 # value when you've already emitted metrics will break your time
 # series data.
@@ -65,6 +61,9 @@ interval: "10s"
 # and terminates. Leaving this at the default of 0 disables the
 # watchdog.
 flush_watchdog_missed_flushes: 0
+
+# Whether to flush sinks on shutdown. Defaults to false
+flush_on_shutdown: false
 
 # Veneur can "sychronize" it's flushes with the system clock, flushing at even
 # intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
@@ -106,14 +105,6 @@ hostname: ""
 
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
-
-# Tags supplied here will be added to all metrics and spans when flushing
-# to vendor sinks. They will not be forwarded to global Veneur instances.
-# tags:
-#  - "foo:bar"
-#  - "baz:quz"
-tags:
-  - ""
 
 # Tags suppliedhere will be added to all metrics and spans at parse/ingestion
 # time. They *will* be forwarded to global Veneur instances.
@@ -190,23 +181,6 @@ veneur_metrics_additional_tags:
 
 count_unique_timeseries: false
 
-# == DEPRECATED ==
-
-# This configuration has been replaced by datadog_flush_max_per_body.
-flush_max_per_body: 0
-# This configuration has been replaced by datadog_span_buffer_size.
-ssf_buffer_size: 0
-# This has been replaced by lightstep_access_token
-trace_lightstep_access_token: ""
-# This has been replaced by lightstep_collector_host
-trace_lightstep_collector_host: ""
-# This has been replaced by lightstep_reconnect_period
-trace_lightstep_reconnect_period: ""
-# This has been replaced by lightstep_maximum_spans
-trace_lightstep_maximum_spans: 0
-# This has been replaced by lightstep_num_clients
-trace_lightstep_num_clients: 0
-
 # == PERFORMANCE ==
 
 # Adjusts the number of metrics workers across which Veneur will
@@ -250,16 +224,6 @@ read_buffer_size_bytes: 2097152
 # Sets the log level to DEBUG
 debug: false
 
-# Log (at level DEBUG) information about every ingested span. Be
-# careful with this setting in a real deployment - it is extremely
-# verbose.
-debug_ingested_spans: false
-
-# Log (at level DEBUG) information about every batch of flushed
-# metrics. Be careful with this setting in a real deployment - it is
-# extremely verbose.
-debug_flushed_metrics: false
-
 # runtime.SetMutexProfileFraction
 # The fraction of mutex contention events that are reported in the mutex profile.
 # On average, 1/n events are reported, so higher numbers will sample fewer events.
@@ -277,333 +241,3 @@ sentry_dsn: ""
 
 # Enables Go profiling
 enable_profiling: false
-
-
-
-# == SINKS ==
-
-# == Datadog ==
-# Datadog can be a sink for metrics, events, service checks and trace spans.
-
-# Hostname to send Datadog data to.
-datadog_api_hostname: https://app.datadoghq.com
-
-# API key for acessing Datadog
-datadog_api_key: "farts"
-
-# How many metrics to include in the body of each POST to Datadog. Veneur
-# will post multiple times in parallel if the limit is exceeded.
-datadog_flush_max_per_body: 25000
-
-# Hostname to send Datadog trace data to.
-datadog_trace_api_address: ""
-
-# A list of metric *prefixes* to drop. Note that this is not the whole string
-# and not a regexp. Just a prefix. Any metrics that have this prefix as a name
-# will be dropped before sending to Datadog.
-datadog_metric_name_prefix_drops:
-  - "an_ignorable_metric."
-
-# Excluded tags *prefixes* from specific metric *prefixes*
-# Any metrics that have tags *prefixes* will be dropped before sending to Datadog.
-datadog_exclude_tags_prefix_by_prefix_metric:
-  - metric_prefix: "metric_prefix"
-    tags:
-      - an_ignorable_tag_prefix"
-
-# The size of the ring buffer used for retaining spans during a flush interval.
-datadog_span_buffer_size: 16384
-
-
-# == New Relic ==
-# New Relic can be a sink for metrics, events, and trace spans.
-
-# New Relic Insert Key used for sending data
-# Required
-newrelic_insert_key: ""
-
-# New Relic Account ID to send data to
-# Required
-newrelic_account_id: 0
-
-# New Relic Region to send data to
-# Optional, default: US
-newrelic_region: "US"
-
-# Common tags are metadata that will be added to all
-# Metrics reported to New Relic.
-newrelic_common_tags:
-  - "environment:dev"
-
-# Event type to use when reporting events to New Relic
-# Optional, default: "veneur"
-newrelic_event_type: ""
-
-# Event type to use when reporting status checks to New Relic
-# Optional, default: "veneurCheck"
-newrelic_service_check_event_type: ""
-
-# To enable Infinite Tracing on the New Relic Edge, set this field to your
-# Trace Observer URL including scheme and path. See:
-# https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/enable-configure/enable-distributed-tracing
-newrelic_trace_observer_url: ""
-
-# == SignalFx ==
-# SignalFx can be a sink for metrics and events.
-
-# The API token to use, either always, or if no
-# signalfx_per_tag_api_keys match
-signalfx_api_key: "abc123"
-
-# Where to send metrics
-signalfx_endpoint_base: "https://ingest.signalfx.com"
-
-# Where to send API calls
-# Substitute the correct SignalFX realm
-signalfx_endpoint_api: "https://api.REALM.signalfx.com"
-
-# The tag we'll add to each metric that contains the hostname we came from
-signalfx_hostname_tag: "host"
-
-# The tag that we'll (optionally) use to look up values in
-# signalfx_per_tag_api_keys. If this is empty, the SignalFX sink uses
-# only signalfx_api_key.
-signalfx_vary_key_by: host_operator
-
-# If signalfx_vary_key_by is set, and matches one of the keys in here,
-# use the value as the signalfx api token. If this is empty, only
-# signalfx_api_key is used to submit metrics, unless
-# signalfx_dynamic_per_tag_api_tokens_enable is true.
-signalfx_per_tag_api_keys:
-  # metrics tagged with host_operator:cory will be submitted with api
-  # key "farts_in_a_general_direction"
-  - name: "cory"
-    api_key: "farts_in_a_general_direction"
-  # metrics tagged with host_operator:asf will be submitted with api
-  # key "definitely_no_farts"
-  - name: "asf"
-    api_key: "definitely_no_farts"
-
-# A list of metric *prefixes* to drop. Note that this is not the whole string
-# and not a regexp. Just a prefix. Any metrics that have this prefix as a name
-# (not a tag!) will be dropped before sending to SignalFx.
-signalfx_metric_name_prefix_drops:
-  - ""
-
-# A list of tag `key:value` *prefixes* pairs to drop. Note that this is not the
-# whole string and not a regexp. Just a prefix. You can use it in a few ways:
-# * `foo:` will match any tag key, so you can ignore the value
-# * `foo:bar` will match the key and value (well, unless there's `foo:barsnort`)
-# * `foo` to matching things like `foobar:gorch` and `foofart:fighter`
-signalfx_metric_tag_prefix_drops:
-  - ""
-
-# The maximum number of datapoints in a single HTTP request to
-# signalfx. On flush time, if veneur would flush more than the number
-# configured here, it breaks the flushes apart into batches of this
-# configured max size and submits them in parallel HTTP requests. If
-# set to zero (the default), veneur makes a single HTTP request per
-# signalfx flush endpoint.
-signalfx_flush_max_per_body: 0
-
-# Enables dynamic fetching of per-tag API keys from SignalFx. Any
-# API keys fetched from SignalFx will be added to the list specified
-# in signalfx_per_tag_api_keys, and will overwrite any keys in that
-# list on name collision. The name of the key specified in SignalFX will
-# be used as the name. signalfx_api_key is the fallback key used to submit
-# metrics if signalfx_vary_key_by doesn't match any of the dynamic API
-# keys' names. signalfx_api_key is used to fetch the API keys from SignalFx,
-# so it must be set for this to work properly.
-signalfx_dynamic_per_tag_api_keys_enable: false
-
-# The period of the polling performed on SignalFX to fetch dynamic
-# tokens. This only matters if signalfx_dynamic_per_tag_api_keys_enable
-# is true. Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
-# If missing (or set to zero), it will default to "10m"
-signalfx_dynamic_per_tag_api_keys_refresh_period: "10m"
-
-# == AWS X-Ray ==
-# X-Ray can be a sink for trace spans.
-
-# If present, X-Ray will be enabled as a tracing sink
-xray_address: "localhost:2000"
-
-# Sample rate in percent (as an integer)
-# The sink will hash the trace id of the span such that all Veneur instances
-# will sample the same segments by using the trace id as input for a checksum.
-xray_sample_percentage: 100.0
-
-# All tags are sent as (unindexed) Metadata to X-ray. Up to 50 tags per trace
-# (not per span) can be indexed as Annotations for search. Tag keys specified here
-# will be provided as Annotations
-xray_annotation_tags:
-  - ""
-
-# == LightStep ==
-# LightStep can be a sink for trace spans.
-
-# If present, lightstep will be enabled as a tracing sink
-# and this access token will be used
-# Access token for accessing LightStep
-lightstep_access_token: ""
-
-# Host to send trace data to
-lightstep_collector_host: ""
-
-# How often LightStep should reconnect to collectors. If your workload is
-# imbalanced — some veneur instances see more spans than others — then you may
-# want to reconnect more often.
-lightstep_reconnect_period: "5m"
-
-# The LightStep client has internal throttling to prevent you overwhelming
-# things. Anything that exceeds this many spans in the reporting period
-# — which is a minimum of 500ms and maxmium 2.5s at the time of this writing
-# — will be dropped. In other words, you can only submit this many spans per
-# flush! If left at zero, veneur will set the maximum to the size of
-# `ssf_buffer_size`.
-lightstep_maximum_spans: 0
-
-# Multiple clients can be used to load-balance spans cross multiple collectors,
-# improving span indexing success rates.
-# If missing (or set to zero), it will default
-# to a minimum of one client
-lightstep_num_clients: 1
-
-# == Kafka ==
-
-# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
-# in the form hostname:port, such as localhost:9092
-kafka_broker: ""
-
-# Name of the topic we'll be publishing checks to
-kafka_check_topic: "veneur_checks"
-
-# Name of the topic we'll be publishing events to
-kafka_event_topic: "veneur_events"
-
-# Name of the topic we'll be publishing metrics to
-kafka_metric_topic: ""
-
-# Name of the topic we'll be publishing spans to
-kafka_span_topic: "veneur_spans"
-
-# Name of a tag to hash on for sampling; if empty, spans are sampled based off
-# of traceID
-kafka_span_sample_tag: ""
-
-# Sample rate (as a percent)
-kafka_span_sample_rate_percent: 100.0
-
-kafka_metric_buffer_bytes: 0
-
-kafka_metric_buffer_messages: 0
-
-kafka_metric_buffer_frequency: "10s"
-
-kafka_span_serialization_format: "protobuf"
-
-# The type of partitioner to use.
-kafka_partitioner: "hash"
-
-# What type of acks to require for metrics? One of none, local or all.
-kafka_metric_require_acks: "all"
-
-# What type of acks to require for span? One of none, local or all.
-kafka_span_require_acks: "all"
-
-kafka_span_buffer_bytes: 0
-
-kafka_span_buffer_mesages: 0
-
-kafka_span_buffer_frequency: "10s"
-
-# The number of retries before giving up.
-kafka_retry_max: 0
-
-# == Falconer ==
-#
-# Falconer (https://github.com/stripe/falconer) is an ephemeral (in-memory)
-# trace data sink. Veneur relays data to Falconer via gRPC.
-
-falconer_address: "falconer.service.consul"
-
-# == Splunk ==
-#
-# Veneur can feed spans to splunk through the HTTP Event Consumer
-# (HEC) interface
-# See also http://dev.splunk.com/view/event-collector/SP-CAAAE6M
-
-# The URL to use for a connection to the splunk
-splunk_hec_address: "https://localhost:8088"
-
-# The authentication token veneur will use to authenticate to the HEC
-splunk_hec_token: "00000000-0000-0000-0000-000000000000"
-
-# (optional) The number of spans to submit in a single request to the
-# Splunk HEC endpoint. If unset, defaults to 100 (the recommended
-# maximum event count per batch according to Splunk).
-splunk_hec_batch_size: 100
-
-# (optional) The maximum number of parallel submissions to do to the
-# splunk HEC endpoint. Must be greater than 0. If this setting is
-# omitted, defaults to 1.
-splunk_hec_submission_workers: 3
-
-# (optional) server name set on the TLS configuration. This is useful
-# if the host you're reaching identifies with a different name than on
-# the URL.
-splunk_hec_tls_validate_hostname: "some-other-hostname"
-
-# (optional) The maximum amount of time to wait before timing out
-# sending a batch of spans to the Splunk HEC. If omitted / set to 0,
-# sending batches happens without a timeout.
-splunk_hec_send_timeout: "10ms"
-
-# (optional) The maximum amount of time to wait before timing out
-# ingesting a single span to the Splunk HEC sink. If omitted / set to
-# 0, ingestion will wait indefintely until the span can be ingested.
-splunk_hec_ingest_timeout: "10ms"
-
-
-# (optional) The fraction of traces that are chosen to be reported to
-# Splunk.  On average, 1/N traces will be chosen to be reported to
-# Splunk. Setting this value to 1 or 0 disables sampling, reporting
-# all spans from all traces to Splunk.  Sampling is performed on the
-# trace ID, so either all spans from a given trace will be reported,
-# or none will.  Spans get excluded from sampling if they have
-# indicator=true set, or if they have a trace ID of 0.
-splunk_span_sample_rate: 10
-
-# (optional) The maximum duration to keep an HEC submission HTTP
-# request. After this duration, veneur will close & re-open the HTTP
-# connection even if less than `splunk_hec_batch_size` have been
-# ingested. This defaults to the flush `interval` setting (10s).
-splunk_hec_max_connection_lifetime: "10s"
-
-# (optional) The maximum (random) amount of jitter to add to
-# splunk_hec_max_connection_lifetime. This can help reduce the number
-# of submission workers that close & re-open their HTTP connections at
-# the same time. If set to 0, there will be no jitter.
-splunk_hec_connection_lifetime_jitter: "10s"
-
-# == Prometheus ==
-#
-# The URL to used to send packets to Statsd Repeater.
-prometheus_repeater_address: "localhost:9125"
-
-# (optional) The packet type (tcp / udp) that Veneur will use to send packets
-# to Statsd Repeater. This will be tcp by default.
-prometheus_network_type: "tcp"
-
-# == PLUGINS ==
-
-# == S3 Output ==
-# Include these if you want to archive data to S3
-aws_access_key_id: ""
-aws_secret_access_key: ""
-aws_region: ""
-aws_s3_bucket: ""
-
-# == LocalFile Output ==
-# Include this if you want to archive data to a local file (which should then be rotated/cleaned)
-flush_file: ""

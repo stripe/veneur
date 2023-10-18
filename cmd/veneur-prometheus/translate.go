@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	dto "github.com/prometheus/client_model/go"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
 )
 
 var (
@@ -15,7 +16,10 @@ var (
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
 )
 
-func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan PrometheusResults) <-chan []statsdStat {
+func translatePrometheus(
+	cfg *prometheusConfig, cache *countCache,
+	prometheus <-chan openmetrics.QueryResults,
+) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
 	t := translator{
@@ -28,8 +32,9 @@ func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-c
 	return statsd
 }
 
-func sendTranslated(prometheus <-chan PrometheusResults, translate translator, s sender) {
-
+func sendTranslated(
+	prometheus <-chan openmetrics.QueryResults, translate translator, s sender,
+) {
 	count := int64(0)
 	unknown := int64(0)
 
@@ -96,7 +101,7 @@ func (s sender) Close() {
 }
 
 type translator struct {
-	ignored []*regexp.Regexp
+	ignored *regexp.Regexp
 	renamed map[string]string
 	added   map[string]string
 }
@@ -184,22 +189,16 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 	for _, pair := range labels {
 		labelName := pair.GetName()
 		labelValue := pair.GetValue()
-		include := true
 
-		for _, ignoredLabel := range t.ignored {
-			if ignoredLabel.MatchString(labelName) {
-				include = false
-				break
-			}
+		if t.ignored != nil && t.ignored.MatchString(labelName) {
+			continue
 		}
 
-		if include {
-			if newName, found := t.renamed[labelName]; found {
-				labelName = newName
-			}
-
-			tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
+		if newName, found := t.renamed[labelName]; found {
+			labelName = newName
 		}
+
+		tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
 	}
 
 	for name, value := range t.added {

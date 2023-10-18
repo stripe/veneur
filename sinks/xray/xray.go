@@ -79,7 +79,6 @@ type XRaySpanSink struct {
 	traceClient     *trace.Client
 	conn            *net.UDPConn
 	sampleThreshold uint32
-	commonTags      map[string]string
 	annotationTags  map[string]struct{}
 	log             *logrus.Entry
 	spansDropped    int64
@@ -89,27 +88,6 @@ type XRaySpanSink struct {
 }
 
 var _ sinks.SpanSink = &XRaySpanSink{}
-
-// TODO(yeogai): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.XrayAddress == "" {
-		return
-	}
-	conf.SpanSinks = append(conf.SpanSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
-		Kind: "xray",
-		Name: "xray",
-		Config: XRaySinkConfig{
-			Address:          conf.XrayAddress,
-			AnnotationTags:   conf.XrayAnnotationTags,
-			SamplePercentage: conf.XraySamplePercentage,
-		},
-	})
-}
 
 // ParseConfig decodes the map config for an X-Ray sink into a XRaySinkConfig
 // struct.
@@ -169,7 +147,6 @@ func Create(
 	return &XRaySpanSink{
 		daemonAddr:      xRaySinkConfig.Address,
 		sampleThreshold: sampleThreshold,
-		commonTags:      server.TagsAsMap,
 		log:             logger,
 		name:            name,
 		nameRegex:       reg,
@@ -215,9 +192,6 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	metadata := map[string]string{}
 	annotations := map[string]string{}
-	for k, v := range x.commonTags {
-		metadata[k] = v
-	}
 
 	http := XRaySegmentHTTP{
 		Request: XRaySegmentHTTPRequest{

@@ -18,7 +18,7 @@ func TestRuneUnmarshalYAMLComma(t *testing.T) {
 	yamlFile := []byte(`rune: ","`)
 	data := runeYamlStruct{}
 	err := yaml.Unmarshal(yamlFile, &data)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, ',', rune(data.Rune))
 }
 

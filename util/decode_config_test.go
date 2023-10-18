@@ -21,7 +21,7 @@ func TestDecodeConfigYaml(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "config-value", result.ConfigItem)
 }
 
@@ -36,7 +36,7 @@ func TestDecodeConfigEnvironment(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "config-value", result.ConfigItem)
 }
 
@@ -51,7 +51,7 @@ func TestDecodeConfigWithStringSecretYaml(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "config-value", result.ConfigItem.Value)
 }
 
@@ -66,7 +66,7 @@ func TestDecodeConfigWithStringSecretEnvironment(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "config-value", result.ConfigItem.Value)
 }
 
@@ -81,7 +81,7 @@ func TestDecodeConfigWithDurationYaml(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(600000), result.ConfigItem.Milliseconds())
 }
 
@@ -96,7 +96,7 @@ func TestDecodeConfigWithDurationEnvironment(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(600000), result.ConfigItem.Milliseconds())
 }
 
@@ -109,6 +109,80 @@ func TestDecodeConfigWithDurationUnset(t *testing.T) {
 	result := configStruct{}
 	err := util.DecodeConfig("name", config, &result)
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(0), result.ConfigItem.Milliseconds())
+}
+
+func TestDecodeConfigWithRegexpYaml(t *testing.T) {
+	type configStruct struct {
+		ConfigItem util.Regexp `yaml:"config_item"`
+	}
+
+	config := map[string]interface{}{
+		"config_item": "^foo$",
+	}
+	result := configStruct{}
+	err := util.DecodeConfig("name", config, &result)
+
+	require.NoError(t, err)
+	if assert.NotNil(t, result.ConfigItem.Value) {
+		assert.True(t, result.ConfigItem.Value.Match([]byte("foo")))
+		assert.False(t, result.ConfigItem.Value.Match([]byte("bar")))
+	}
+}
+
+func TestDecodeConfigWithRegexpEnvironment(t *testing.T) {
+	type configStruct struct {
+		ConfigItem util.Regexp `yaml:"config_item"`
+	}
+
+	os.Setenv("NAME_CONFIGITEM", "^foo$")
+	defer os.Unsetenv("NAME_CONFIGITEM")
+	config := map[string]interface{}{}
+	result := configStruct{}
+	err := util.DecodeConfig("name", config, &result)
+
+	require.NoError(t, err)
+	if assert.NotNil(t, result.ConfigItem.Value) {
+		assert.True(t, result.ConfigItem.Value.Match([]byte("foo")))
+		assert.False(t, result.ConfigItem.Value.Match([]byte("bar")))
+	}
+}
+
+func TestDecodeConfigWithUrlYaml(t *testing.T) {
+	type configStruct struct {
+		ConfigItem util.Url `yaml:"config_item"`
+	}
+
+	config := map[string]interface{}{
+		"config_item": "http://example.com/path",
+	}
+	result := configStruct{}
+	err := util.DecodeConfig("name", config, &result)
+
+	require.NoError(t, err)
+	if assert.NotNil(t, result.ConfigItem.Value) {
+		assert.Equal(t, "http", result.ConfigItem.Value.Scheme)
+		assert.Equal(t, "example.com", result.ConfigItem.Value.Host)
+		assert.Equal(t, "/path", result.ConfigItem.Value.Path)
+	}
+}
+
+func TestDecodeConfigWithUrlEnvironment(t *testing.T) {
+	type configStruct struct {
+		ConfigItem util.Url `yaml:"config_item"`
+	}
+
+	os.Setenv("NAME_CONFIGITEM", "http://example.com/path")
+	defer os.Unsetenv("NAME_CONFIGITEM")
+	config := map[string]interface{}{}
+	result := configStruct{}
+	err := util.DecodeConfig("name", config, &result)
+
+	require.NoError(t, err)
+	if assert.NotNil(t, result.ConfigItem.Value) {
+		assert.Equal(t, "http", result.ConfigItem.Value.Scheme)
+		assert.Equal(t, "example.com", result.ConfigItem.Value.Host)
+		assert.Equal(t, "/path", result.ConfigItem.Value.Path)
+	}
 }

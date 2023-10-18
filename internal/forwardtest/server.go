@@ -1,6 +1,7 @@
 package forwardtest
 
 import (
+	"io"
 	"net"
 	"sync"
 	"testing"
@@ -71,4 +72,23 @@ func (s *Server) Addr() net.Addr {
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
 	s.handler(mlist.Metrics)
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) SendMetricsV2(
+	server forwardrpc.Forward_SendMetricsV2Server,
+) error {
+	metrics := []*metricpb.Metric{}
+	for {
+		metric, err := server.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
+	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+		Metrics: metrics,
+	})
+	return err
 }

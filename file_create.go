@@ -8,7 +8,6 @@ package veneur
 // 	"path/filepath"
 
 // 	"github.com/sirupsen/logrus"
-// 	"github.com/gogo/protobuf/proto"
 // 	"github.com/stripe/veneur/v14/ssf"
 // )
 
@@ -29,7 +28,7 @@ package veneur
 // 		Operation:      "operationTest",
 // 		Tags:           map[string]string{"tag1": "value1"},
 // 	}
-// 	buf, _ := proto.Marshal(span)
+// 	buf, _ := span.Marshal()
 // 	fmt.Println(buf)
 
 // 	pbFile := filepath.Join("fixtures", "protobuf", "regression.pb")

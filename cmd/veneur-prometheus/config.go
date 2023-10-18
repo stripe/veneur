@@ -6,41 +6,51 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type prometheusConfig struct {
-	metricsHost    string
+	metricsHost    *url.URL
 	httpClient     *http.Client
-	ignoredLabels  []*regexp.Regexp
-	ignoredMetrics []*regexp.Regexp
+	ignoredLabels  *regexp.Regexp
+	ignoredMetrics *regexp.Regexp
 	addedLabels    map[string]string
 	renameLabels   map[string]string
+	interval       time.Duration
 }
 
-func prometheusConfigFromArguments() (prometheusConfig, error) {
+func prometheusConfigFromArguments() (*prometheusConfig, error) {
 	client, err := newHTTPClient(*socket, *cert, *key, *caCert)
 
-	return prometheusConfig{
-		metricsHost:    *metricsHost,
+	metricsHostUrl, err := url.Parse(*metricsHost)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedInterval, err := time.ParseDuration(*interval)
+	if err != nil {
+		return nil, err
+	}
+
+	return &prometheusConfig{
+		metricsHost:    metricsHostUrl,
 		httpClient:     client,
 		ignoredLabels:  getIgnoredFromArg(*ignoredLabelsStr),
 		ignoredMetrics: getIgnoredFromArg(*ignoredMetricsStr),
 		addedLabels:    getAddedFromArg(*addLabelsStr),
 		renameLabels:   getRenamedFromArg(*renameLabelsStr),
+		interval:       parsedInterval,
 	}, err
 }
 
-func getIgnoredFromArg(arg string) []*regexp.Regexp {
-	ignore := []*regexp.Regexp{}
-	for _, ignoreStr := range strings.Split(arg, ",") {
-		if len(ignoreStr) > 0 {
-			ignore = append(ignore, regexp.MustCompile(ignoreStr))
-		}
+func getIgnoredFromArg(arg string) *regexp.Regexp {
+	if arg == "" {
+		return nil
 	}
-
-	return ignore
+	return regexp.MustCompile(strings.Replace(arg, ",", "|", -1))
 }
 
 func getRenamedFromArg(arg string) map[string]string {

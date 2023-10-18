@@ -15,6 +15,7 @@ import (
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 var invalidMetricTypeError = errors.New("Invalid type for metric")
@@ -104,11 +105,23 @@ type MetricKey struct {
 
 // NewMetricKeyFromMetric initializes a MetricKey from the protobuf-compatible
 // metricpb.Metric
-func NewMetricKeyFromMetric(m *metricpb.Metric) MetricKey {
+func NewMetricKeyFromMetric(
+	m *metricpb.Metric, ignoredTags []matcher.TagMatcher,
+) MetricKey {
+	tags := []string{}
+tagLoop:
+	for _, tag := range m.Tags {
+		for _, matcher := range ignoredTags {
+			if matcher.Match(tag) {
+				continue tagLoop
+			}
+		}
+		tags = append(tags, tag)
+	}
 	return MetricKey{
 		Name:       m.Name,
 		Type:       strings.ToLower(m.Type.String()),
-		JoinedTags: strings.Join(m.Tags, ","),
+		JoinedTags: strings.Join(tags, ","),
 	}
 }
 
@@ -333,120 +346,160 @@ func (p *Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
-	ret := &UDPMetric{
+func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
+	metric := &UDPMetric{
 		SampleRate: 1.0,
 	}
-	pipeSplitter := NewSplitBytes(packet, '|')
-	pipeSplitter.Next() // first split always succeeds, since there are at least zero pipes
-
-	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
-	if startingColon == -1 {
-		return nil, errors.New("Invalid metric packet, need at least 1 colon")
+	typeStart := bytes.IndexByte(packet, '|')
+	if typeStart < 0 {
+		return errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
-	nameChunk := pipeSplitter.Chunk()[:startingColon]
-	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
+
+	valueStart := bytes.IndexByte(packet[:typeStart], ':')
+	if valueStart == -1 {
+		return errors.New("Invalid metric packet, need at least 1 colon")
+	}
+	nameChunk := packet[:valueStart]
+	valueChunk := packet[valueStart+1 : typeStart]
+
 	if len(nameChunk) == 0 {
-		return nil, errors.New("Invalid metric packet, name cannot be empty")
+		return errors.New("Invalid metric packet, name cannot be empty")
 	}
 
-	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
+	metric.Name = string(nameChunk)
+
+	tagsStart := len(packet)
+	if idx := bytes.IndexByte(packet[typeStart+1:], '|'); idx > -1 {
+		tagsStart = typeStart + 1 + idx
 	}
-	typeChunk := pipeSplitter.Chunk()
+	typeChunk := packet[typeStart+1 : tagsStart]
+
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
-		return nil, errors.New("Invalid metric packet, metric type not specified")
+		return errors.New("Invalid metric packet, metric type not specified")
 	}
-
-	ret.Name = string(nameChunk)
 
 	// Decide on a type
 	switch typeChunk[0] {
 	case 'c':
-		ret.Type = "counter"
+		metric.Type = "counter"
 	case 'g':
-		ret.Type = "gauge"
+		metric.Type = "gauge"
 	case 'd', 'h': // consider DogStatsD's "distribution" to be a histogram
-		ret.Type = "histogram"
+		metric.Type = "histogram"
 	case 'm': // We can ignore the s in "ms"
-		ret.Type = "timer"
+		metric.Type = "timer"
 	case 's':
-		ret.Type = "set"
+		metric.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
-	}
-
-	// Now convert the metric's value
-	if ret.Type == "set" {
-		ret.Value = string(valueChunk)
-	} else {
-		v, err := strconv.ParseFloat(string(valueChunk), 64)
-		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
-		}
-		ret.Value = v
+		return invalidMetricTypeError
 	}
 
 	// each of these sections can only appear once in the packet
 	foundSampleRate := false
 	var tempTags []string
-	for pipeSplitter.Next() {
-		if len(pipeSplitter.Chunk()) == 0 {
+	for tagsStart < len(packet) {
+		tagsNext := len(packet)
+		idx := bytes.IndexByte(packet[tagsStart+1:], '|')
+		if idx > -1 {
+			tagsNext = tagsStart + 1 + idx
+		}
+		chunk := packet[tagsStart+1 : tagsNext]
+		tagsStart = tagsNext
+
+		if len(chunk) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
-			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
+			return fmt.Errorf("Invalid metric packet, empty string after/between pipes")
 		}
-		switch pipeSplitter.Chunk()[0] {
+		switch chunk[0] {
 		case '@':
 			if foundSampleRate {
-				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+				return errors.New("Invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
-			sr := string(pipeSplitter.Chunk()[1:])
+			sr := string(chunk[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
+				return fmt.Errorf("Invalid float for sample rate: %s", sr)
 			}
 			if sampleRate <= 0 || sampleRate > 1 {
-				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
+				return fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
 			}
-			ret.SampleRate = float32(sampleRate)
+			metric.SampleRate = float32(sampleRate)
 			foundSampleRate = true
 
 		case '#':
 			// tags!
 			if tempTags != nil {
-				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+				return errors.New("Invalid metric packet, multiple tag sections specified")
 			}
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
 			// see worker.go line 273
-			tempTags = strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
+			tempTags = strings.Split(string(chunk[1:]), ",")
 			for i, tag := range tempTags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
 				if strings.HasPrefix(tag, "veneurlocalonly") {
 					// delete the tag from the list
 					tempTags = append(tempTags[:i], tempTags[i+1:]...)
-					ret.Scope = LocalOnly
+					metric.Scope = LocalOnly
 					break
 				} else if strings.HasPrefix(tag, "veneurglobalonly") {
 					// delete the tag from the list
 					tempTags = append(tempTags[:i], tempTags[i+1:]...)
-					ret.Scope = GlobalOnly
+					metric.Scope = GlobalOnly
 					break
 				}
 			}
 		default:
-			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
+			return fmt.Errorf("Invalid metric packet, contains unknown section %q", chunk)
 		}
 	}
 
-	ret.UpdateTags(tempTags, p.extendTags)
+	metric.UpdateTags(tempTags, p.extendTags)
 
-	return ret, nil
+	// Now convert the metric's value
+	for len(valueChunk) > 0 {
+		value := valueChunk
+		nextColon := bytes.IndexByte(valueChunk, ':')
+		ret := metric
+		if nextColon > -1 {
+			value = valueChunk[0:nextColon]
+			valueChunk = valueChunk[nextColon+1:]
+			// make a shallow copy of metric, so that the next iteration of the loop does not overwrite the same value
+			metric = &UDPMetric{
+				MetricKey: MetricKey{
+					Name:       metric.Name,
+					Type:       metric.Type,
+					JoinedTags: metric.JoinedTags,
+				},
+				Tags:       metric.Tags,
+				SampleRate: metric.SampleRate,
+				Scope:      metric.Scope,
+				Digest:     metric.Digest,
+			}
+		} else {
+			// indicate that we should terminate after this iteration
+			valueChunk = nil
+			// don't bother making a shallow copy of `metric` for the next loop iteration; there won't be one
+		}
+
+		if ret.Type == "set" {
+			ret.Value = string(value)
+		} else {
+			v, err := strconv.ParseFloat(string(value), 64)
+			if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
+				return fmt.Errorf("Invalid number for metric value: %s", string(value))
+			}
+			ret.Value = v
+		}
+		cb(ret)
+	}
+
+	return nil
 }
 
 // ParseEvent parses a DogStatsD event packet and returns an SSF sample or an

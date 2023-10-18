@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -93,36 +92,6 @@ type splunkSpanSink struct {
 var _ sinks.SpanSink = &splunkSpanSink{}
 var _ TestableSplunkSpanSink = &splunkSpanSink{}
 
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.SplunkHecToken == "" && conf.SplunkHecAddress == "" {
-		return nil
-	}
-	if conf.SplunkHecToken == "" || conf.SplunkHecAddress == "" {
-		return fmt.Errorf("both hec_address and hec_token must be set")
-	}
-	conf.SpanSinks = append(conf.MetricSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
-		Kind: "signalfx",
-		Name: "signalfx",
-		Config: SplunkSinkConfig{
-			HecAddress:                  conf.SplunkHecAddress,
-			HecBatchSize:                conf.SplunkHecBatchSize,
-			HecConnectionLifetimeJitter: conf.SplunkHecConnectionLifetimeJitter,
-			HecIngestTimeout:            conf.SplunkHecIngestTimeout,
-			HecMaxConnectionLifetime:    conf.SplunkHecMaxConnectionLifetime,
-			HecSendTimeout:              conf.SplunkHecSendTimeout,
-			HecSubmissionWorkers:        conf.SplunkHecSubmissionWorkers,
-			HecTLSValidateHostname:      conf.SplunkHecTLSValidateHostname,
-			HecToken:                    conf.SplunkHecToken,
-			SpanSampleRate:              conf.SplunkSpanSampleRate,
-		},
-	})
-	return nil
-}
-
 // ParseConfig decodes the map config for a Splunk sink into a SplunkSinkConfig
 // struct.
 func ParseConfig(
@@ -201,6 +170,11 @@ func Create(
 // Name returns this sink's name
 func (sink *splunkSpanSink) Name() string {
 	return sink.name
+}
+
+// Kind returns this sink's kind
+func (sink *splunkSpanSink) Kind() string {
+	return "splunk"
 }
 
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {

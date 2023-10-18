@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,9 +68,7 @@ func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn))
 // The counterpart is either a fresh UDP port with nothing reading
 // packets, or a network reader that discards every byte read.
 func BenchmarkSerialization(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(b, err)
-	defer os.RemoveAll(dir)
+	dir := b.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)

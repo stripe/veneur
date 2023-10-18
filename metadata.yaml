@@ -1,0 +1,10 @@
+# This file is used for Stripe internal deployment purposes
+responsible_team: observability-monitoring
+affected_services:
+  - service: service-veneur-image
+  - service: service-veneur-fleetwide
+change_notifications:
+  slack: false
+review_requirements:
+  - assignees:
+      - codeowners-observability-monitoring

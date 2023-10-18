@@ -64,24 +64,22 @@ func ConsumePanic(cl *trace.Client, hostname string, err interface{}) {
 }
 
 // logrus hook to send error/fatal/panic messages to sentry
-type sentryHook struct {
-	hostname string
-	lv       []logrus.Level
+type SentryHook struct {
+	Level []logrus.Level
 }
 
-var _ logrus.Hook = sentryHook{}
+var _ logrus.Hook = SentryHook{}
 
-func (s sentryHook) Levels() []logrus.Level {
-	return s.lv
+func (s SentryHook) Levels() []logrus.Level {
+	return s.Level
 }
 
-func (s sentryHook) Fire(e *logrus.Entry) error {
+func (s SentryHook) Fire(e *logrus.Entry) error {
 	if sentry.CurrentHub().Client() == nil {
 		return nil
 	}
 
 	event := sentry.NewEvent()
-	event.ServerName = s.hostname
 
 	packetExtraLength := len(e.Data)
 	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
