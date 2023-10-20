@@ -629,9 +629,9 @@ enable_profiling: false
 # # the default value is 500.
 # prometheus_remote_flush_retry_initial_backoff: 500
 
-# # (optional) In milliseconds, the timeout for each individual request to Remote Write.
-# # the default value is 35000 
-# prometheus_remote_flush_timeout: 35000
+# # (optional) In seconds, the timeout for each individual request to Remote Write.
+# # the default value is 35
+# prometheus_remote_flush_timeout: 35
 
 # == PLUGINS ==
 

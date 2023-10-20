@@ -85,7 +85,7 @@ func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConf
 		promRWConfig.FlushInitialBackoff = 500
 	}
 	if promRWConfig.FlushTimeout <= 0 {
-		promRWConfig.FlushTimeout = 35000
+		promRWConfig.FlushTimeout = 35
 	}
 	if promRWConfig.AcceptanceWindow <= 0 {
 		promRWConfig.AcceptanceWindow = 5
@@ -384,7 +384,7 @@ func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (in
 	httpReq.Header.Set("User-Agent", fmt.Sprintf("Venuer Prometheus RW sink"))
 	httpReq.Header.Set("Sysdig-Custom-Metric-Category", "PROMETHEUS_NON_COMPLIANT")
 
-	newCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prw.flushTimeout)*time.Millisecond)
+	newCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prw.flushTimeout)*time.Second)
 
 	defer cancel()
 
