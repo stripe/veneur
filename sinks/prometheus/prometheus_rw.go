@@ -152,10 +152,11 @@ func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 			if ok {
 				prw.logger.Debug("Found element in buffer queue with timestamp: ", el.timestamp)
 				// metrics are discarded if they are older than the acceptance window
-				if el.timestamp.Truncate(time.Minute).After(time.Now().Truncate(time.Minute).Add(time.Duration(prw.acceptanceWindow) * time.Minute)) {
+				now := time.Now()
+				if el.timestamp.Truncate(time.Minute).After(now.Truncate(time.Minute).Add(time.Duration(-prw.acceptanceWindow) * time.Minute)) {
 					prw.AsyncFlush(el)
 				} else {
-					prw.logger.Debug("Skipped message with timestamp ", el.timestamp, " at ", time.Now())
+					prw.logger.Debug("Skipped message with timestamp ", el.timestamp, " at ", now)
 				}
 
 			}
@@ -383,7 +384,7 @@ func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (in
 	httpReq.Header.Set("User-Agent", fmt.Sprintf("Venuer Prometheus RW sink"))
 	httpReq.Header.Set("Sysdig-Custom-Metric-Category", "PROMETHEUS_NON_COMPLIANT")
 
-	newCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prw.flushTimeout)*time.Second)
+	newCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prw.flushTimeout)*time.Millisecond)
 
 	defer cancel()
 
@@ -407,6 +408,9 @@ func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (in
 	}
 	if httpResp.StatusCode/100 == 5 {
 		return httpResp.StatusCode, responseBody, recoverableError{err}
+	}
+	if httpResp.StatusCode/100 == 2 {
+		prw.logger.Debug("Successfully sent metrics to Remote Write")
 	}
 	return httpResp.StatusCode, responseBody, err
 }
