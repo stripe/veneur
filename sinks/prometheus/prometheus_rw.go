@@ -29,10 +29,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// message buffer to avoid discarding metrics when the sink is delayed in sending data by momentary problems happening to Remote Write
+var queue = make(chan QueueElement, 100)
+
+type QueueElement struct {
+	metrics   []samplers.InterMetric
+	timestamp time.Time
+	ctx       context.Context
+}
+
 type PrometheusRemoteWriteSinkConfig struct {
 	BearerToken         string `yaml:"bearer_token"`
 	FlushMaxConcurrency int    `yaml:"flush_max_concurrency"`
 	FlushMaxPerBody     int    `yaml:"flush_max_per_body"`
+	FlushRetries        int    `yaml:"flush_retries"`
+	FlushInitialBackoff int    `yaml:"flush_retry_initial_backoff"`
+	FlushTimeout        int    `yaml:"flush_timeout"`
+	AcceptanceWindow    int    `yaml:"acceptance_window"`
 	WriteAddress        string `yaml:"write_address"`
 }
 
@@ -46,7 +59,11 @@ type PrometheusRemoteWriteSink struct {
 	traceClient *trace.Client
 	promClient  *http.Client
 	flushMaxPerBody,
-	flushMaxConcurrency int
+	flushMaxConcurrency,
+	flushRetries,
+	flushInitialBackoff,
+	flushTimeout,
+	acceptanceWindow int
 }
 
 func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
@@ -60,6 +77,18 @@ func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConf
 	}
 	if promRWConfig.FlushMaxConcurrency <= 0 {
 		promRWConfig.FlushMaxConcurrency = 10
+	}
+	if promRWConfig.FlushRetries <= 0 {
+		promRWConfig.FlushRetries = 5
+	}
+	if promRWConfig.FlushInitialBackoff <= 0 {
+		promRWConfig.FlushInitialBackoff = 500
+	}
+	if promRWConfig.FlushTimeout <= 0 {
+		promRWConfig.FlushTimeout = 35000
+	}
+	if promRWConfig.AcceptanceWindow <= 0 {
+		promRWConfig.AcceptanceWindow = 5
 	}
 	return promRWConfig, nil
 }
@@ -76,11 +105,13 @@ func CreateRWMetricSink(
 	return NewPrometheusRemoteWriteSink(
 		conf.WriteAddress, conf.BearerToken,
 		conf.FlushMaxPerBody, conf.FlushMaxConcurrency,
+		conf.FlushRetries, conf.FlushInitialBackoff,
+		conf.FlushTimeout, conf.AcceptanceWindow,
 		config.Hostname, server.Tags, name, logger)
 }
 
 // NewPrometheusRemoteWriteSink returns a new RemoteWriteExporter, validating params.
-func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, hostname string, tags []string, name string, logger *logrus.Entry) (*PrometheusRemoteWriteSink, error) {
+func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, flushRetries int, flushInitialBackoff int, flushTimeout int, acceptanceWindow int, hostname string, tags []string, name string, logger *logrus.Entry) (*PrometheusRemoteWriteSink, error) {
 	if _, err := url.ParseRequestURI(addr); err != nil {
 		return nil, err
 	}
@@ -99,6 +130,10 @@ func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBo
 		promClient:          httpClient,
 		flushMaxPerBody:     flushMaxPerBody,
 		flushMaxConcurrency: flushMaxConcurrency,
+		flushRetries:        flushRetries,
+		flushInitialBackoff: flushInitialBackoff,
+		flushTimeout:        flushTimeout,
+		acceptanceWindow:    acceptanceWindow,
 	}, nil
 }
 
@@ -110,15 +145,45 @@ func (prw *PrometheusRemoteWriteSink) Name() string {
 // Start begins the sink.
 func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
+	go func() {
+		for {
+			prw.logger.Debug("Reading from buffer queue")
+			el, ok := <-queue
+			if ok {
+				prw.logger.Debug("Found element in buffer queue with timestamp: ", el.timestamp)
+				// metrics are discarded if they are older than the acceptance window
+				if el.timestamp.Truncate(time.Minute).After(time.Now().Truncate(time.Minute).Add(time.Duration(prw.acceptanceWindow) * time.Minute)) {
+					prw.AsyncFlush(el)
+				} else {
+					prw.logger.Debug("Skipped message with timestamp ", el.timestamp, " at ", time.Now())
+				}
+
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 	return nil
 }
 
-// Flush sends metrics to the Statsd Exporter in batches.
+// Flush only stores metrics in the buffer queue, AsyncFlush does the actual flushing
 func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
-	span, _ := trace.StartSpanFromContext(ctx, "")
+	timestamp, _ := ctx.Deadline()
+	timestamp = timestamp.Add(time.Duration(-10) * time.Second)
+	el := QueueElement{
+		metrics:   interMetrics,
+		timestamp: timestamp,
+		ctx:       ctx,
+	}
+	queue <- el
+	return nil
+}
+
+// Sends metrics to Remote Write
+func (prw *PrometheusRemoteWriteSink) AsyncFlush(el QueueElement) error {
+	span, _ := trace.StartSpanFromContext(el.ctx, "")
 	defer span.ClientFinish(prw.traceClient)
 
-	promMetrics, promMetadata := prw.finalizeMetrics(interMetrics)
+	promMetrics, promMetadata := prw.finalizeMetrics(el.metrics)
 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
@@ -148,7 +213,7 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 					<-semaphoreChan
 				}
 			}()
-			prw.flushRequest(span.Attach(ctx), request, &wg)
+			prw.flushRequest(span.Attach(el.ctx), request, &wg)
 		}()
 
 	}
@@ -259,8 +324,8 @@ func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request 
 		return // already logged failure
 	}
 
-	retries := 5
-	backoff := 50 * time.Millisecond
+	retries := prw.flushRetries
+	backoff := time.Duration(prw.flushInitialBackoff) * time.Millisecond
 	for {
 		_, _, err = prw.store(ctx, req)
 		if err != nil {
@@ -318,10 +383,11 @@ func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (in
 	httpReq.Header.Set("User-Agent", fmt.Sprintf("Venuer Prometheus RW sink"))
 	httpReq.Header.Set("Sysdig-Custom-Metric-Category", "PROMETHEUS_NON_COMPLIANT")
 
-	ctx, cancel := context.WithTimeout(ctx, 9*time.Second)
+	newCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prw.flushTimeout)*time.Second)
+
 	defer cancel()
 
-	httpResp, err := prw.promClient.Do(httpReq.WithContext(ctx))
+	httpResp, err := prw.promClient.Do(httpReq.WithContext(newCtx))
 	if err != nil {
 		return -1, nil, recoverableError{err}
 	}
@@ -358,6 +424,10 @@ func MigrateRWConfig(conf *veneur.Config) {
 			FlushMaxConcurrency: conf.PrometheusRemoteFlushMaxConcurrency,
 			FlushMaxPerBody:     conf.PrometheusRemoteFlushMaxPerBody,
 			BearerToken:         conf.PrometheusRemoteBearerToken,
+			FlushRetries:        conf.PrometheusRemoteFlushRetries,
+			FlushInitialBackoff: conf.PrometheusRemoteFlushRetryInitialBackoff,
+			FlushTimeout:        conf.PrometheusRemoteFlushTimeout,
+			AcceptanceWindow:    conf.PrometheusRemoteAcceptanceWindow,
 		},
 	})
 }

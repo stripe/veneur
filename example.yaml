@@ -609,6 +609,10 @@ enable_profiling: false
 # # (optional) A bearer token to supply as authentication to the above URL
 # prometheus_remote_bearer_token: "auth-token"
 
+# # (optional) In minutes, metrics older than the acceptance window will be discarded.
+# # the default value is 5
+# prometheus_remote_acceptance_window: 5
+
 # # (optional) How many metrics to include in the body of each Remote Write. Veneur
 # # will post multiple times in parallel if the limit is exceeded.
 # prometheus_remote_flush_max_per_body: 5000
@@ -616,6 +620,18 @@ enable_profiling: false
 # # (optional) Maximum concurrency of parallel writes. Veneur will queue requests
 # # above this limit when sending parallel requests.
 # prometheus_remote_flush_max_concurrency: 10
+
+# # (optional) Number of retries when sending data to the remote write destination.
+# # the default value is 5. 
+# prometheus_remote_flush_retries: 5
+
+# # (optional) In milliseconds, the initial waiting time between retries, which then gets multiplied by 2 each time.
+# # the default value is 500.
+# prometheus_remote_flush_retry_initial_backoff: 500
+
+# # (optional) In milliseconds, the timeout for each individual request to Remote Write.
+# # the default value is 35000 
+# prometheus_remote_flush_timeout: 35000
 
 # == PLUGINS ==
 
