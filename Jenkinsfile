@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'backend_terminating_j8 || builder-backend-j8 || general_terminating_j8'
+        label 'amazon-linux2'
     }
 
     parameters {
@@ -52,7 +52,7 @@ pipeline {
         stage('Publish image to Quay') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'QUAY', usernameVariable: 'QUAY_USERNAME', passwordVariable:'QUAY_PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId: 'quay-robot-account', usernameVariable: 'QUAY_USERNAME', passwordVariable:'QUAY_PASSWORD')]) {
                         sh "docker login -u=${QUAY_USERNAME} -p=${QUAY_PASSWORD} quay.io"
                     }
                     if (params.DRY_RUN || !params.PUSH_TO_QUAY) {
