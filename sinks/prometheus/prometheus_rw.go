@@ -3,7 +3,9 @@ package prometheus
 import (
 	"bufio"
 	"bytes"
+	"container/list"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,13 +31,78 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// message buffer to avoid discarding metrics when the sink is delayed in sending data by momentary problems happening to Remote Write
-var queue = make(chan QueueElement, 100)
+var queue = NewConcurrentQueue()
 
-type QueueElement struct {
-	metrics   []samplers.InterMetric
-	timestamp time.Time
+type RWRequest struct {
+	metrics   [][]byte
+	metadata  []byte
 	ctx       context.Context
+	size      int
+	timestamp time.Time
+}
+
+// queue to avoid discarding metrics when the sink is delayed in sending data by momentary problems happening to Remote Write
+type ConcurrentQueue struct {
+	list        list.List
+	lock        sync.Mutex
+	byteSize    int
+	maxByteSize int
+}
+
+func NewConcurrentQueue() *ConcurrentQueue {
+	q := &ConcurrentQueue{}
+	q.list = *list.New().Init()
+	q.maxByteSize = 1000 //TODO settings
+	return q
+}
+
+// Put the item in the back of the queue
+func (q *ConcurrentQueue) Enqueue(item RWRequest) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	newItemSize := item.size
+
+	if q.byteSize+newItemSize > q.maxByteSize {
+		q.MakeSpace(newItemSize)
+	}
+
+	q.list.InsertBefore(item, q.list.Back())
+	q.byteSize = q.byteSize + item.size
+}
+
+// Gets the first item from queue, not deleting it
+func (q *ConcurrentQueue) GetFirst() *list.Element {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	item := q.list.Front()
+	return item
+}
+
+func (q *ConcurrentQueue) IsEmpty() bool {
+	return q.list.Len() == 0
+}
+
+func (q *ConcurrentQueue) Size() int {
+	return q.list.Len()
+}
+
+func (q *ConcurrentQueue) MakeSpace(newItemSize int) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	item := q.list.Front()
+	for q.byteSize+newItemSize > q.maxByteSize {
+		q.list.Remove(item)
+		q.byteSize = q.byteSize - item.Value.(RWRequest).size
+		item = item.Prev()
+	}
+}
+
+func (q *ConcurrentQueue) DeleteItem(item *list.Element) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	q.list.Remove(item)
+	q.byteSize = q.byteSize - item.Value.(RWRequest).size
 }
 
 type PrometheusRemoteWriteSinkConfig struct {
@@ -145,20 +212,14 @@ func (prw *PrometheusRemoteWriteSink) Name() string {
 // Start begins the sink.
 func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
+	// routine reading from buffer queue
 	go func() {
 		for {
 			prw.logger.Debug("Reading from buffer queue")
-			el, ok := <-queue
-			if ok {
-				prw.logger.Debug("Found element in buffer queue with timestamp: ", el.timestamp)
-				// metrics are discarded if they are older than the acceptance window
-				now := time.Now()
-				if el.timestamp.Truncate(time.Minute).After(now.Truncate(time.Minute).Add(time.Duration(-prw.acceptanceWindow) * time.Minute)) {
-					prw.AsyncFlush(el)
-				} else {
-					prw.logger.Debug("Skipped message with timestamp ", el.timestamp, " at ", now)
-				}
-
+			item := queue.GetFirst()
+			if item != nil {
+				prw.logger.Debug("Found element in buffer queue with timestamp: ", item.Value.(RWRequest).timestamp)
+				prw.AsyncFlush(item)
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -168,23 +229,8 @@ func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 
 // Flush only stores metrics in the buffer queue, AsyncFlush does the actual flushing
 func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
-	timestamp, _ := ctx.Deadline()
-	timestamp = timestamp.Add(time.Duration(-10) * time.Second)
-	el := QueueElement{
-		metrics:   interMetrics,
-		timestamp: timestamp,
-		ctx:       ctx,
-	}
-	queue <- el
-	return nil
-}
 
-// Sends metrics to Remote Write
-func (prw *PrometheusRemoteWriteSink) AsyncFlush(el QueueElement) error {
-	span, _ := trace.StartSpanFromContext(el.ctx, "")
-	defer span.ClientFinish(prw.traceClient)
-
-	promMetrics, promMetadata := prw.finalizeMetrics(el.metrics)
+	promMetrics, promMetadata := prw.finalizeMetrics(interMetrics)
 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
@@ -193,6 +239,51 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(el QueueElement) error {
 	chunkSize := ((len(promMetrics) - 1) / workers) + 1
 	prw.logger.WithField("workers", workers).Debug("Worker count chosen")
 	prw.logger.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
+
+	// serializing data
+	dataRequest := [][]byte{}
+	totalByteSize := 0
+	for i := 0; i < workers; i++ {
+		chunk := promMetrics[i*chunkSize:]
+		if i < workers-1 {
+			// trim to chunk size unless this is the last one
+			chunk = chunk[:chunkSize]
+		}
+		writeRequest := prompb.WriteRequest{Timeseries: chunk}
+		byteRequest, err := prw.buildRequest(writeRequest)
+		if err != nil {
+			return nil // already logged failure
+		}
+		totalByteSize = totalByteSize + binary.Size(byteRequest)
+		dataRequest = append(dataRequest, byteRequest)
+	}
+	// serializing metadata
+	metadataRequest := prompb.WriteRequest{Metadata: promMetadata}
+	metaRequest, err := prw.buildRequest(metadataRequest)
+	if err != nil {
+		return nil // already logged failure
+	}
+	totalByteSize = totalByteSize + binary.Size(metaRequest)
+
+	rwReq := RWRequest{
+		metrics:   dataRequest,
+		metadata:  metaRequest,
+		size:      totalByteSize,
+		ctx:       ctx,
+		timestamp: time.Now(),
+	}
+
+	queue.Enqueue(rwReq)
+	prw.logger.Debug("RW Sink buffer queue size: ", queue.Size())
+
+	return nil
+}
+
+// Sends metrics to Remote Write
+func (prw *PrometheusRemoteWriteSink) AsyncFlush(item *list.Element) error {
+	span, _ := trace.StartSpanFromContext(item.Value.(RWRequest).ctx, "")
+	defer span.ClientFinish(prw.traceClient)
+
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 
@@ -200,7 +291,7 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(el QueueElement) error {
 	semaphoreChan := make(chan struct{}, prw.flushMaxConcurrency)
 	defer close(semaphoreChan)
 
-	queuedRequest := func(request prompb.WriteRequest) {
+	queuedRequest := func(request []byte) {
 		wg.Add(1)
 		if prw.flushMaxConcurrency > 0 {
 			// block until the semaphore channel has room
@@ -214,29 +305,27 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(el QueueElement) error {
 					<-semaphoreChan
 				}
 			}()
-			prw.flushRequest(span.Attach(el.ctx), request, &wg)
+			prw.flushRequest(span.Attach(item.Value.(RWRequest).ctx), request, &wg)
 		}()
 
 	}
 
-	// first flush metadata (TODO: not every time, check if metadata enabled..)
-	queuedRequest(prompb.WriteRequest{Metadata: promMetadata})
+	//TODO find way to find out which were successful
 
-	for i := 0; i < workers; i++ {
-		chunk := promMetrics[i*chunkSize:]
-		if i < workers-1 {
-			// trim to chunk size unless this is the last one
-			chunk = chunk[:chunkSize]
-		}
-		queuedRequest(prompb.WriteRequest{Timeseries: chunk})
+	// first flush metadata (TODO: not every time, check if metadata enabled..)
+	queuedRequest(item.Value.(RWRequest).metadata)
+	// then all data chunks
+	for _, el := range item.Value.(RWRequest).metrics {
+		queuedRequest(el)
 	}
+
 	wg.Wait()
 	tags := map[string]string{"sink": prw.Name()}
 	span.Add(
 		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
-		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(promMetrics)), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(item.Value.(RWRequest).metrics)), tags),
 	)
-	prw.logger.WithField("metrics", len(promMetrics)).Info("Completed flush to Prometheus Remote Write")
+	prw.logger.WithField("metrics", len(item.Value.(RWRequest).metrics)).Info("Completed flush to Prometheus Remote Write")
 	return nil
 }
 
@@ -317,38 +406,20 @@ func (prw *PrometheusRemoteWriteSink) finalizeMetrics(metrics []samplers.InterMe
 	return promMetrics, promMetadata
 }
 
-func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request prompb.WriteRequest, wg *sync.WaitGroup) {
+func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request []byte, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	req, err := prw.buildRequest(request)
+	_, _, err := prw.store(ctx, request)
 	if err != nil {
-		return // already logged failure
-	}
-
-	retries := prw.flushRetries
-	backoff := time.Duration(prw.flushInitialBackoff) * time.Millisecond
-	for {
-		_, _, err = prw.store(ctx, req)
-		if err != nil {
-			_, recoverable := err.(recoverableError)
-			if recoverable {
-				retries--
-				if retries < 0 {
-					prw.logger.Errorf("Failed: %v, aborting retries", err.Error())
-					return
-				}
-
-				prw.logger.Warnf("Failed: %v, retrying after %d ms (%d tries left)", err.Error(), backoff.Nanoseconds()/1e6, retries)
-				time.Sleep(backoff)
-				backoff *= 2
-				continue
-			}
-
-			// not recoverable
-			prw.logger.Errorf("Failed: %v, not retryable", err.Error())
+		_, recoverable := err.(recoverableError)
+		if recoverable {
+			// todo put back in queue
+			return
 		}
-		return
+		// not recoverable
+		prw.logger.Errorf("Failed: %v, not retryable", err.Error())
 	}
+	return
 }
 
 func (prw *PrometheusRemoteWriteSink) buildRequest(request prompb.WriteRequest) (req []byte, err error) {
