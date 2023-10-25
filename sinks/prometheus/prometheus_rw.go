@@ -43,16 +43,17 @@ type RWRequest struct {
 
 // queue to avoid discarding metrics when the sink is delayed in sending data by momentary problems happening to Remote Write
 type ConcurrentQueue struct {
-	list        list.List
+	list        *list.List
 	lock        sync.Mutex
 	byteSize    int
 	maxByteSize int
 }
 
 func NewConcurrentQueue() *ConcurrentQueue {
-	q := &ConcurrentQueue{}
-	q.list = *list.New().Init()
-	q.maxByteSize = 1000 //TODO settings
+	q := &ConcurrentQueue{
+		list:        list.New(),
+		maxByteSize: 1000, //TODO settings
+	}
 	return q
 }
 
@@ -63,11 +64,28 @@ func (q *ConcurrentQueue) Enqueue(item RWRequest) {
 
 	newItemSize := item.size
 
+	// if there's no space left, make it
 	if q.byteSize+newItemSize > q.maxByteSize {
 		q.MakeSpace(newItemSize)
 	}
 
-	q.list.InsertBefore(item, q.list.Back())
+	q.list.PushBack(item)
+	q.byteSize = q.byteSize + item.size
+}
+
+// Put the item in the front of the queue
+func (q *ConcurrentQueue) EnqueueFront(item RWRequest) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	newItemSize := item.size
+
+	//if there's no space left, don't add the item
+	if q.byteSize+newItemSize > q.maxByteSize {
+		return
+	}
+
+	q.list.PushFront(item)
 	q.byteSize = q.byteSize + item.size
 }
 
@@ -94,7 +112,7 @@ func (q *ConcurrentQueue) MakeSpace(newItemSize int) {
 	for q.byteSize+newItemSize > q.maxByteSize {
 		q.list.Remove(item)
 		q.byteSize = q.byteSize - item.Value.(RWRequest).size
-		item = item.Prev()
+		item = item.Next()
 	}
 }
 
@@ -221,7 +239,7 @@ func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 				prw.logger.Debug("Found element in buffer queue with timestamp: ", item.Value.(RWRequest).timestamp)
 				prw.AsyncFlush(item)
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}()
 	return nil
@@ -272,7 +290,6 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 		ctx:       ctx,
 		timestamp: time.Now(),
 	}
-
 	queue.Enqueue(rwReq)
 	prw.logger.Debug("RW Sink buffer queue size: ", queue.Size())
 
@@ -305,17 +322,25 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(item *list.Element) error {
 					<-semaphoreChan
 				}
 			}()
-			prw.flushRequest(span.Attach(item.Value.(RWRequest).ctx), request, &wg)
+			prw.flushRequest(span.Attach(item.Value.(RWRequest).ctx), request, &wg, item.Value.(RWRequest).timestamp)
 		}()
 
 	}
 
-	//TODO find way to find out which were successful
+	// deleting original request from queue
+	prw.logger.Debug("Removing item from queue before trying to send it")
+	queue.DeleteItem(item)
+	prw.logger.Debug("Buffer queue length after deletion = ", queue.Size())
+	prw.logger.Debug("Buffer queue byte size after deletion = ", queue.byteSize)
 
 	// first flush metadata (TODO: not every time, check if metadata enabled..)
-	queuedRequest(item.Value.(RWRequest).metadata)
+	if item.Value.(RWRequest).metadata != nil {
+		prw.logger.Debug("Sending metadata")
+		queuedRequest(item.Value.(RWRequest).metadata)
+	}
 	// then all data chunks
-	for _, el := range item.Value.(RWRequest).metrics {
+	for i, el := range item.Value.(RWRequest).metrics {
+		prw.logger.Debug("Sending data chunk number ", i)
 		queuedRequest(el)
 	}
 
@@ -406,14 +431,26 @@ func (prw *PrometheusRemoteWriteSink) finalizeMetrics(metrics []samplers.InterMe
 	return promMetrics, promMetadata
 }
 
-func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request []byte, wg *sync.WaitGroup) {
+func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request []byte, wg *sync.WaitGroup, timestamp time.Time) {
 	defer wg.Done()
 
 	_, _, err := prw.store(ctx, request)
 	if err != nil {
 		_, recoverable := err.(recoverableError)
 		if recoverable {
-			// todo put back in queue
+			// put it back at the top of the queue, as a single request (ignoring difference between data and metadata)
+			dataRequest := [][]byte{}
+			dataRequest = append(dataRequest, request)
+
+			singleReq := RWRequest{
+				metrics:   dataRequest,
+				size:      binary.Size(request),
+				ctx:       ctx,
+				timestamp: timestamp,
+			}
+			queue.EnqueueFront(singleReq)
+			prw.logger.Debug("Enqueued failed request, queue length = ", queue.Size())
+			prw.logger.Debug("Buffer queue byte size = ", queue.byteSize)
 			return
 		}
 		// not recoverable
@@ -477,7 +514,7 @@ func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (in
 	if httpResp.StatusCode/100 != 2 {
 		err = errors.Errorf("server returned HTTP status %s: %s", httpResp.Status, string(responseBody))
 	}
-	if httpResp.StatusCode/100 == 5 {
+	if httpResp.StatusCode/100 == 5 || httpResp.StatusCode == 429 {
 		return httpResp.StatusCode, responseBody, recoverableError{err}
 	}
 	if httpResp.StatusCode/100 == 2 {
