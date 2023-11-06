@@ -69,6 +69,7 @@ require (
 	github.com/gogo/googleapis v1.3.1 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
+	github.com/google/uuid v1.3.1
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect

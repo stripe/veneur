@@ -96,10 +96,9 @@ type Config struct {
 	PrometheusRemoteBearerToken               string              `yaml:"prometheus_remote_bearer_token"`
 	PrometheusRemoteFlushMaxConcurrency       int                 `yaml:"prometheus_remote_flush_max_concurrency"`
 	PrometheusRemoteFlushMaxPerBody           int                 `yaml:"prometheus_remote_flush_max_per_body"`
-	PrometheusRemoteFlushRetries              int                 `yaml:"prometheus_remote_flush_retries"`
-	PrometheusRemoteFlushRetryInitialBackoff  int                 `yaml:"prometheus_remote_flush_retry_initial_backoff"`
+	PrometheusRemoteFlushInterval             int                 `yaml:"prometheus_remote_flush_interval"`
 	PrometheusRemoteFlushTimeout              int                 `yaml:"prometheus_remote_flush_timeout"`
-	PrometheusRemoteAcceptanceWindow          int                 `yaml:"prometheus_remote_acceptance_window"`
+	PrometheusRemoteBufferQueueSize           int                 `yaml:"prometheus_remote_buffer_queue_size"`
 	PrometheusRemoteWriteAddress              string              `yaml:"prometheus_remote_write_address"`
 	ReadBufferSizeBytes                       int                 `yaml:"read_buffer_size_bytes"`
 	SentryDsn                                 util.StringSecret   `yaml:"sentry_dsn"`

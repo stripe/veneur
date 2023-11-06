@@ -604,33 +604,29 @@ enable_profiling: false
 # # https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 # #
 # # The URL used as the remote write destination
-# prometheus_remote_write_address: "https://destination.api/prometheus/remote/write"
+# prometheus_remote_write_address: "http://localhost:9210/prometheus/remote/write"
 
-# # (optional) A bearer token to supply as authentication to the above URL
-# prometheus_remote_bearer_token: "auth-token"
+# # # (optional) A bearer token to supply as authentication to the above URL
+# prometheus_remote_bearer_token: "1dcad7a1-a2c9-495e-b688-96aa58c0a3ef"
 
-# # (optional) In minutes, metrics older than the acceptance window will be discarded.
-# # the default value is 5
-# prometheus_remote_acceptance_window: 5
+# # # (optional) In megabytes, the size of the buffer queue for incoming messages
+# # # the default value is 2
+# prometheus_remote_buffer_queue_size: 2
 
-# # (optional) How many metrics to include in the body of each Remote Write. Veneur
-# # will post multiple times in parallel if the limit is exceeded.
+# # # (optional) How many metrics to include in the body of each Remote Write. Veneur
+# # # will post multiple times in parallel if the limit is exceeded.
 # prometheus_remote_flush_max_per_body: 5000
 
-# # (optional) Maximum concurrency of parallel writes. Veneur will queue requests
-# # above this limit when sending parallel requests.
+# # # (optional) Maximum concurrency of parallel writes. Veneur will queue requests
+# # # above this limit when sending parallel requests.
 # prometheus_remote_flush_max_concurrency: 10
 
-# # (optional) Number of retries when sending data to the remote write destination.
-# # the default value is 5. 
-# prometheus_remote_flush_retries: 5
+# # # (optional) In milliseconds, the wait time between readings from the queue
+# # # the default value is 1000
+# prometheus_remote_flush_interval: 1000
 
-# # (optional) In milliseconds, the initial waiting time between retries, which then gets multiplied by 2 each time.
-# # the default value is 500.
-# prometheus_remote_flush_retry_initial_backoff: 500
-
-# # (optional) In seconds, the timeout for each individual request to Remote Write.
-# # the default value is 35
+# # # (optional) In seconds, the timeout for each individual request to Remote Write.
+# # # the default value is 35
 # prometheus_remote_flush_timeout: 35
 
 # == PLUGINS ==
