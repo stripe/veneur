@@ -49,6 +49,7 @@ type ConcurrentQueue struct {
 	lock        sync.Mutex
 	byteSize    int
 	maxByteSize int
+	logger      *logrus.Entry
 }
 
 func NewConcurrentQueue() *ConcurrentQueue {
@@ -67,11 +68,23 @@ func (q *ConcurrentQueue) Enqueue(item RWRequest) {
 
 	// if there's no space left, make it
 	if q.byteSize+newItemSize > q.maxByteSize {
-		q.MakeSpace(newItemSize)
+		q.logger.Debug("Need to make space: ", q.maxByteSize, " ", q.byteSize)
+		firstDeletableItem := q.list.Front()
+		for q.byteSize+newItemSize > q.maxByteSize {
+			q.logger.Debug("Deleting 1 item of size: ", firstDeletableItem.Value.(RWRequest).size)
+			q.byteSize = q.byteSize - firstDeletableItem.Value.(RWRequest).size
+			toRemove := firstDeletableItem
+			firstDeletableItem = firstDeletableItem.Next()
+			q.list.Remove(toRemove)
+		}
+		q.logger.Debug("After making space: ", q.byteSize)
 	}
 
 	q.list.PushBack(item)
-	q.byteSize = q.byteSize + item.size
+	q.byteSize += item.size
+	q.logger.Debug("After insert back")
+	q.logger.Debug("queue current size: ", q.byteSize)
+	q.logger.Debug("queue current len: ", q.list.Len())
 }
 
 // Put the item in the front of the queue
@@ -88,6 +101,9 @@ func (q *ConcurrentQueue) EnqueueFront(item RWRequest) {
 
 	q.list.PushFront(item)
 	q.byteSize = q.byteSize + item.size
+	q.logger.Debug("After insert front")
+	q.logger.Debug("queue current size: ", q.byteSize)
+	q.logger.Debug("queue current len: ", q.list.Len())
 }
 
 // Gets the first batch of items with the same id from queue
@@ -108,6 +124,9 @@ func (q *ConcurrentQueue) GetFirstBatch() []list.Element {
 		q.list.Remove(toDelete)
 		q.byteSize = q.byteSize - toDelete.Value.(RWRequest).size
 	}
+	q.logger.Debug("After batch get")
+	q.logger.Debug("queue current size: ", q.byteSize)
+	q.logger.Debug("queue current len: ", q.list.Len())
 	return itemList
 }
 
@@ -117,17 +136,6 @@ func (q *ConcurrentQueue) IsEmpty() bool {
 
 func (q *ConcurrentQueue) Size() int {
 	return q.list.Len()
-}
-
-func (q *ConcurrentQueue) MakeSpace(newItemSize int) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-	item := q.list.Front()
-	for q.byteSize+newItemSize > q.maxByteSize {
-		q.list.Remove(item)
-		q.byteSize = q.byteSize - item.Value.(RWRequest).size
-		item = item.Next()
-	}
 }
 
 type PrometheusRemoteWriteSinkConfig struct {
@@ -230,17 +238,19 @@ func (prw *PrometheusRemoteWriteSink) Name() string {
 // Start begins the sink.
 func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
-	// initializing the queue with the correct size
-	queue.byteSize = prw.bufferQueueSize
+	// initializing the queue with the correct size, in bytes
+	queue.maxByteSize = 1024 * 1024 * prw.bufferQueueSize
+	queue.logger = prw.logger
+	prw.logger.Debug("Initializing buffer queue with max queue size: ", queue.maxByteSize)
 	// routine reading from buffer queue
 	go func() {
 		for {
-			prw.logger.Debug("Reading from buffer queue")
+			prw.logger.Debug("Reading from buffer queue, size: ", queue.list.Len())
 			itemList := queue.GetFirstBatch()
 			if itemList != nil {
 				prw.AsyncFlush(itemList)
 			}
-			time.Sleep(time.Duration(prw.flushInterval) * time.Millisecond) //TODO config
+			time.Sleep(time.Duration(prw.flushInterval) * time.Millisecond)
 		}
 	}()
 	return nil
@@ -261,6 +271,21 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 
 	timestamp := time.Now()
 	requestUuid := uuid.New()
+
+	// serializing metadata
+	metadataRequest := prompb.WriteRequest{Metadata: promMetadata}
+	metaRequest, err := prw.buildRequest(metadataRequest)
+	if err != nil {
+		return nil // already logged failure
+	}
+	metaReq := RWRequest{
+		request:   metaRequest,
+		size:      binary.Size(metaRequest),
+		ctx:       ctx,
+		timestamp: timestamp,
+		id:        requestUuid,
+	}
+	queue.Enqueue(metaReq)
 
 	// serializing data
 	for i := 0; i < workers; i++ {
@@ -284,22 +309,8 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 		}
 		queue.Enqueue(rwReq)
 	}
-	// serializing metadata
-	metadataRequest := prompb.WriteRequest{Metadata: promMetadata}
-	metaRequest, err := prw.buildRequest(metadataRequest)
-	if err != nil {
-		return nil // already logged failure
-	}
-	metaReq := RWRequest{
-		request:   metaRequest,
-		size:      binary.Size(metaRequest),
-		ctx:       ctx,
-		timestamp: timestamp,
-		id:        requestUuid,
-	}
 
-	queue.Enqueue(metaReq)
-	prw.logger.Debug("RW Sink buffer queue byte size: ", queue.byteSize, " lentgh: ", queue.Size())
+	prw.logger.Debug("New metrics added to the queue, byte size: ", queue.byteSize, " length: ", queue.Size())
 
 	return nil
 }
@@ -335,13 +346,13 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 
 	}
 
-	// flushing all values, starting from last to first (last one of the slice should be metadata) (TODO: check if metadata enabled..)
+	// flushing all values (the first one of the slice should be metadata) (TODO: check if metadata enabled..)
 	// also calculating total number of metrics for stats
 	totalMetrics := 0
-	for i := len(items) - 1; i >= 0; i-- {
-		prw.logger.Debug("Sending data chunk with id ", items[i].Value.(RWRequest).id, " and timestamp ", items[0].Value.(RWRequest).timestamp)
-		totalMetrics += items[i].Value.(RWRequest).totalMetrics
-		queuedRequest(items[i])
+	for _, v := range items {
+		prw.logger.Debug("Sending data chunk with id ", v.Value.(RWRequest).id, " and timestamp ", v.Value.(RWRequest).timestamp)
+		totalMetrics += v.Value.(RWRequest).totalMetrics
+		queuedRequest(v)
 	}
 
 	wg.Wait()
@@ -439,13 +450,12 @@ func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, item lis
 		_, recoverable := err.(recoverableError)
 		if recoverable {
 			// put it back at the top of the queue
+			prw.logger.Debug("Failed sending request with timestamp ", item.Value.(RWRequest).timestamp, " to PRWS, recoverable")
 			queue.EnqueueFront(item.Value.(RWRequest))
-			prw.logger.Debug("Enqueued failed request, queue length = ", queue.Size())
-			prw.logger.Debug("Buffer queue byte size = ", queue.byteSize)
 			return
 		}
 		// not recoverable
-		prw.logger.Errorf("Failed: %v, not retryable", err.Error())
+		prw.logger.Errorf("Failed sending request with error: %v, not retryable", err.Error())
 	}
 	return
 }
