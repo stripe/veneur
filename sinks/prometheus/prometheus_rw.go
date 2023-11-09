@@ -242,7 +242,7 @@ func (prw *PrometheusRemoteWriteSink) Name() string {
 func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
 	// initializing the queue with the correct size, in bytes
-	queue.maxByteSize = 10 //24 * 1024 * prw.bufferQueueSize
+	queue.maxByteSize = 1024 * 1024 * prw.bufferQueueSize
 	queue.logger = prw.logger
 	prw.logger.Debug("Initializing buffer queue with max queue size: ", queue.maxByteSize)
 	// routine reading from buffer queue
