@@ -70,6 +70,9 @@ func (q *ConcurrentQueue) Enqueue(item RWRequest) {
 	if q.byteSize+newItemSize > q.maxByteSize {
 		q.logger.Debug("Need to make space: ", q.maxByteSize, " ", q.byteSize)
 		firstDeletableItem := q.list.Front()
+		if firstDeletableItem == nil {
+			panic(fmt.Sprintf("Queue is already empty and we can't fit a single request. Queue size is %v bytes, and request size is %v bytes. Please configure a higher value for queue size (prometheus_remote_buffer_queue_size property).", q.maxByteSize, newItemSize))
+		}
 		for q.byteSize+newItemSize > q.maxByteSize {
 			q.logger.Debug("Deleting 1 item of size: ", firstDeletableItem.Value.(RWRequest).size)
 			q.byteSize = q.byteSize - firstDeletableItem.Value.(RWRequest).size
@@ -239,7 +242,7 @@ func (prw *PrometheusRemoteWriteSink) Name() string {
 func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
 	// initializing the queue with the correct size, in bytes
-	queue.maxByteSize = 1024 * 1024 * prw.bufferQueueSize
+	queue.maxByteSize = 10 //24 * 1024 * prw.bufferQueueSize
 	queue.logger = prw.logger
 	prw.logger.Debug("Initializing buffer queue with max queue size: ", queue.maxByteSize)
 	// routine reading from buffer queue
