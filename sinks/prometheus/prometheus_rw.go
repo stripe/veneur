@@ -147,6 +147,12 @@ func (q *ConcurrentQueue) Size() int {
 	return q.list.Len()
 }
 
+func (q *ConcurrentQueue) CurrentQueueByteSize() int {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	return q.byteSize
+}
+
 type PrometheusRemoteWriteSinkConfig struct {
 	BearerToken         string `yaml:"bearer_token"`
 	FlushMaxConcurrency int    `yaml:"flush_max_concurrency"`
@@ -366,7 +372,7 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 	span.Add(
 		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalMetrics), tags),
-		ssf.Gauge(metricRwSinkQueueSize, float32(queue.byteSize), noTags),
+		ssf.Gauge(metricRwSinkQueueSize, float32(queue.CurrentQueueByteSize()), noTags),
 		ssf.Gauge(metricRwSinkMaxQueueSize, float32(queue.maxByteSize), noTags),
 	)
 	prw.logger.WithField("metrics", totalMetrics).Info("Completed flush to Prometheus Remote Write")
