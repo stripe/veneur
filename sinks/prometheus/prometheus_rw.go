@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,17 @@ import (
 	"github.com/prometheus/common/config"
 	"github.com/sirupsen/logrus"
 )
+
+// gauge to report current queue size
+const metricRwSinkQueueSize = "rw_sink_queue_size"
+
+// gauge to report defined max queue size
+const metricRwSinkMaxQueueSize = "rw_sink_max_queue_size"
+
+// count to report failed PRWS requests
+const metricRwSinkFailedPrwsRequestsTotal = "rw_sink_prws_failed_requests_total"
+
+var noTags = map[string]string{}
 
 var queue = NewConcurrentQueue()
 
@@ -104,9 +116,6 @@ func (q *ConcurrentQueue) EnqueueFront(item RWRequest) {
 
 	q.list.PushFront(item)
 	q.byteSize = q.byteSize + item.size
-	q.logger.Debug("After insert front")
-	q.logger.Debug("queue current size: ", q.byteSize)
-	q.logger.Debug("queue current len: ", q.list.Len())
 }
 
 // Gets the first batch of items with the same id from queue
@@ -127,9 +136,6 @@ func (q *ConcurrentQueue) GetFirstBatch() []list.Element {
 		q.list.Remove(toDelete)
 		q.byteSize = q.byteSize - toDelete.Value.(RWRequest).size
 	}
-	q.logger.Debug("After batch get")
-	q.logger.Debug("queue current size: ", q.byteSize)
-	q.logger.Debug("queue current len: ", q.list.Len())
 	return itemList
 }
 
@@ -313,8 +319,6 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 		queue.Enqueue(rwReq)
 	}
 
-	prw.logger.Debug("New metrics added to the queue, byte size: ", queue.byteSize, " length: ", queue.Size())
-
 	return nil
 }
 
@@ -344,7 +348,7 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 					<-semaphoreChan
 				}
 			}()
-			prw.flushRequest(span.Attach(items[0].Value.(RWRequest).ctx), request, &wg)
+			prw.flushRequest(span, span.Attach(items[0].Value.(RWRequest).ctx), request, &wg)
 		}()
 
 	}
@@ -353,7 +357,6 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 	// also calculating total number of metrics for stats
 	totalMetrics := 0
 	for _, v := range items {
-		prw.logger.Debug("Sending data chunk with id ", v.Value.(RWRequest).id, " and timestamp ", v.Value.(RWRequest).timestamp)
 		totalMetrics += v.Value.(RWRequest).totalMetrics
 		queuedRequest(v)
 	}
@@ -363,6 +366,8 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 	span.Add(
 		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalMetrics), tags),
+		ssf.Gauge(metricRwSinkQueueSize, float32(queue.byteSize), noTags),
+		ssf.Gauge(metricRwSinkMaxQueueSize, float32(queue.maxByteSize), noTags),
 	)
 	prw.logger.WithField("metrics", totalMetrics).Info("Completed flush to Prometheus Remote Write")
 	return nil
@@ -445,20 +450,22 @@ func (prw *PrometheusRemoteWriteSink) finalizeMetrics(metrics []samplers.InterMe
 	return promMetrics, promMetadata
 }
 
-func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, item list.Element, wg *sync.WaitGroup) {
+func (prw *PrometheusRemoteWriteSink) flushRequest(span *trace.Span, ctx context.Context, item list.Element, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	_, _, err := prw.store(ctx, item.Value.(RWRequest).request)
+	httpStatusCode, _, err := prw.store(ctx, item.Value.(RWRequest).request)
 	if err != nil {
+		if httpStatusCode != -1 {
+			prw.logger.Warn("Failed sending request with timestamp ", item.Value.(RWRequest).timestamp, " to PRWS, status code ", httpStatusCode)
+			tags := map[string]string{"status_code": strconv.Itoa(httpStatusCode)}
+			span.Add(ssf.Count(metricRwSinkFailedPrwsRequestsTotal, 1, tags))
+		}
 		_, recoverable := err.(recoverableError)
 		if recoverable {
 			// put it back at the top of the queue
-			prw.logger.Debug("Failed sending request with timestamp ", item.Value.(RWRequest).timestamp, " to PRWS, recoverable")
 			queue.EnqueueFront(item.Value.(RWRequest))
 			return
 		}
-		// not recoverable
-		prw.logger.Errorf("Failed sending request with error: %v, not retryable", err.Error())
 	}
 	return
 }
