@@ -87,7 +87,7 @@ percentiles:
 prometheus_network_type: ""
 prometheus_repeater_address: ""
 prometheus_remote_bearer_token: ""
-prometheus_remote_buffer_queue_size: 2
+prometheus_remote_buffer_queue_size: 512
 prometheus_remote_flush_max_concurrency: 0
 prometheus_remote_flush_max_per_body: 0
 prometheus_remote_flush_interval: 500

@@ -42,6 +42,9 @@ const metricRwSinkMaxQueueSize = "rw_sink_max_queue_size"
 // count to report failed PRWS requests
 const metricRwSinkFailedPrwsRequestsTotal = "rw_sink_prws_failed_requests_total"
 
+// count to report dropped PRWS requests (if queue is full we start dropping)
+const metricRwSinkDroppedPrwsRequestsTotal = "rw_sink_prws_dropped_requests_total"
+
 var noTags = map[string]string{}
 
 var queue = NewConcurrentQueue()
@@ -72,26 +75,33 @@ func NewConcurrentQueue() *ConcurrentQueue {
 }
 
 // Put the item in the back of the queue
-func (q *ConcurrentQueue) Enqueue(item RWRequest) {
+func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
 	newItemSize := item.size
 
+	if newItemSize > q.maxByteSize {
+		panic(fmt.Sprintf("Single request can not fit into the queue. Queue max size is %v bytes, and request size is %v bytes. Please configure a higher value for queue size (prometheus_remote_buffer_queue_size property).", q.maxByteSize, newItemSize))
+	}
+
 	// if there's no space left, make it
 	if q.byteSize+newItemSize > q.maxByteSize {
 		q.logger.Debug("Need to make space: ", q.maxByteSize, " ", q.byteSize)
 		firstDeletableItem := q.list.Front()
-		if firstDeletableItem == nil {
-			panic(fmt.Sprintf("Queue is already empty and we can't fit a single request. Queue size is %v bytes, and request size is %v bytes. Please configure a higher value for queue size (prometheus_remote_buffer_queue_size property).", q.maxByteSize, newItemSize))
-		}
-		for q.byteSize+newItemSize > q.maxByteSize {
+		cntDropped := 0
+		for q.byteSize+newItemSize > q.maxByteSize && firstDeletableItem != nil {
 			q.logger.Debug("Deleting 1 item of size: ", firstDeletableItem.Value.(RWRequest).size)
 			q.byteSize = q.byteSize - firstDeletableItem.Value.(RWRequest).size
 			toRemove := firstDeletableItem
 			firstDeletableItem = firstDeletableItem.Next()
 			q.list.Remove(toRemove)
+			cntDropped += 1
 		}
+		q.logger.Warn("Enqueue - dropped ", cntDropped, " old requests to make room for a new request of size ", newItemSize, " bytes.")
+		span.Add(
+			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(cntDropped), noTags),
+		)
 		q.logger.Debug("After making space: ", q.byteSize)
 	}
 
@@ -103,7 +113,7 @@ func (q *ConcurrentQueue) Enqueue(item RWRequest) {
 }
 
 // Put the item in the front of the queue
-func (q *ConcurrentQueue) EnqueueFront(item RWRequest) {
+func (q *ConcurrentQueue) EnqueueFront(span *trace.Span, item RWRequest) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
@@ -111,6 +121,10 @@ func (q *ConcurrentQueue) EnqueueFront(item RWRequest) {
 
 	//if there's no space left, don't add the item
 	if q.byteSize+newItemSize > q.maxByteSize {
+		q.logger.Warn("EnqueueFront - dropping a request of size ", newItemSize, " bytes because queue is full.")
+		span.Add(
+			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), noTags),
+		)
 		return
 	}
 
@@ -198,7 +212,7 @@ func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConf
 		promRWConfig.FlushTimeout = 35
 	}
 	if promRWConfig.BufferQueueSize <= 0 {
-		promRWConfig.BufferQueueSize = 2
+		promRWConfig.BufferQueueSize = 512
 	}
 	return promRWConfig, nil
 }
@@ -274,6 +288,9 @@ func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 // Flush only stores metrics in the buffer queue, AsyncFlush does the actual flushing
 func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(prw.traceClient)
+
 	promMetrics, promMetadata := prw.finalizeMetrics(interMetrics)
 
 	// break the metrics into chunks of approximately equal size, such that
@@ -300,7 +317,7 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 		timestamp: timestamp,
 		id:        requestUuid,
 	}
-	queue.Enqueue(metaReq)
+	queue.Enqueue(span, metaReq)
 
 	// serializing data
 	for i := 0; i < workers; i++ {
@@ -322,7 +339,7 @@ func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []
 			timestamp:    timestamp,
 			id:           requestUuid,
 		}
-		queue.Enqueue(rwReq)
+		queue.Enqueue(span, rwReq)
 	}
 
 	return nil
@@ -469,7 +486,7 @@ func (prw *PrometheusRemoteWriteSink) flushRequest(span *trace.Span, ctx context
 		_, recoverable := err.(recoverableError)
 		if recoverable {
 			// put it back at the top of the queue
-			queue.EnqueueFront(item.Value.(RWRequest))
+			queue.EnqueueFront(span, item.Value.(RWRequest))
 			return
 		}
 	}

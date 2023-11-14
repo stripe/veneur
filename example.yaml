@@ -610,8 +610,8 @@ enable_profiling: false
 # prometheus_remote_bearer_token: "auth-token"
 
 # # # (optional) In megabytes, the size of the buffer queue for incoming messages
-# # # the default value is 2
-# prometheus_remote_buffer_queue_size: 2
+# # # the default value is 512
+# prometheus_remote_buffer_queue_size: 512
 
 # # # (optional) How many metrics to include in the body of each Remote Write. Veneur
 # # # will post multiple times in parallel if the limit is exceeded.
