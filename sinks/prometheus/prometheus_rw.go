@@ -87,29 +87,26 @@ func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 
 	// if there's no space left, make it
 	if q.byteSize+newItemSize > q.maxByteSize {
-		q.logger.Debug("Need to make space: ", q.maxByteSize, " ", q.byteSize)
+		q.logger.Debug("Need to make space: queue max size is ", q.maxByteSize, ", current size is ", q.byteSize, ", and new element size is ", newItemSize, " bytes.")
 		firstDeletableItem := q.list.Front()
 		cntDropped := 0
 		for q.byteSize+newItemSize > q.maxByteSize && firstDeletableItem != nil {
-			q.logger.Debug("Deleting 1 item of size: ", firstDeletableItem.Value.(RWRequest).size)
+			q.logger.Debug("Deleting 1 element of ", firstDeletableItem.Value.(RWRequest).size, " bytes.")
 			q.byteSize = q.byteSize - firstDeletableItem.Value.(RWRequest).size
 			toRemove := firstDeletableItem
 			firstDeletableItem = firstDeletableItem.Next()
 			q.list.Remove(toRemove)
 			cntDropped += 1
 		}
-		q.logger.Warn("Enqueue - dropped ", cntDropped, " old requests to make room for a new request of size ", newItemSize, " bytes.")
+		q.logger.Warn("Enqueue - dropped ", cntDropped, " old requests to make room for a new request of size ", newItemSize, " bytes. New queue size is ", q.byteSize, " bytes.")
 		span.Add(
 			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(cntDropped), noTags),
 		)
-		q.logger.Debug("After making space: ", q.byteSize)
 	}
 
 	q.list.PushBack(item)
 	q.byteSize += item.size
-	q.logger.Debug("After insert back")
-	q.logger.Debug("queue current size: ", q.byteSize)
-	q.logger.Debug("queue current len: ", q.list.Len())
+	q.logger.Debug("After insert on back, queue current size is ", q.byteSize, " bytes, queue current length is ", q.list.Len(), " elements (requests).")
 }
 
 // Put the item in the front of the queue
@@ -270,11 +267,11 @@ func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	// initializing the queue with the correct size, in bytes
 	queue.maxByteSize = 1024 * 1024 * prw.bufferQueueSize
 	queue.logger = prw.logger
-	prw.logger.Debug("Initializing buffer queue with max queue size: ", queue.maxByteSize)
+	prw.logger.Debug("Initializing buffer queue with max size of ", queue.maxByteSize, " bytes.")
 	// routine reading from buffer queue
 	go func() {
 		for {
-			prw.logger.Debug("Reading from buffer queue, size: ", queue.list.Len())
+			prw.logger.Debug("Reading from buffer queue, currently there are ", queue.list.Len(), " elements.")
 			itemList := queue.GetFirstBatch()
 			if itemList != nil {
 				prw.AsyncFlush(itemList)
