@@ -82,7 +82,12 @@ func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 	newItemSize := item.size
 
 	if newItemSize > q.maxByteSize {
-		panic(fmt.Sprintf("Single request can not fit into the queue. Queue max size is %v bytes, and request size is %v bytes. Please configure a higher value for queue size (prometheus_remote_buffer_queue_size property).", q.maxByteSize, newItemSize))
+		q.logger.Error("Enqueue - dropping request because is bigger than queue size! Request size is ", newItemSize, " bytes, max queue size is ", q.maxByteSize, " bytes.")
+		tags := map[string]string{"drop_type": "size_too_big"}
+		span.Add(
+			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), tags),
+		)
+		return
 	}
 
 	// if there's no space left, make it
@@ -99,8 +104,9 @@ func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 			cntDropped += 1
 		}
 		q.logger.Warn("Enqueue - dropped ", cntDropped, " old requests to make room for a new request of size ", newItemSize, " bytes. New queue size is ", q.byteSize, " bytes.")
+		tags := map[string]string{"drop_type": "push_back_make_space"}
 		span.Add(
-			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(cntDropped), noTags),
+			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(cntDropped), tags),
 		)
 	}
 
@@ -119,8 +125,9 @@ func (q *ConcurrentQueue) EnqueueFront(span *trace.Span, item RWRequest) {
 	//if there's no space left, don't add the item
 	if q.byteSize+newItemSize > q.maxByteSize {
 		q.logger.Warn("EnqueueFront - dropping a request of size ", newItemSize, " bytes because queue is full.")
+		tags := map[string]string{"drop_type": "push_front_queue_full"}
 		span.Add(
-			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), noTags),
+			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), tags),
 		)
 		return
 	}
@@ -209,7 +216,11 @@ func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConf
 		promRWConfig.FlushTimeout = 35
 	}
 	if promRWConfig.BufferQueueSize <= 0 {
+		// if not (or wrongly) configured, fallback to default
 		promRWConfig.BufferQueueSize = 512
+	} else if promRWConfig.BufferQueueSize < 64 {
+		// we need at least 64 MB
+		promRWConfig.BufferQueueSize = 64
 	}
 	return promRWConfig, nil
 }

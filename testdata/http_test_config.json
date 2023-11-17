@@ -92,7 +92,7 @@
   "PrometheusNetworkType": "",
   "PrometheusRepeaterAddress": "",
   "PrometheusRemoteBearerToken": "",
-  "PrometheusRemoteBufferQueueSize": 2,
+  "PrometheusRemoteBufferQueueSize": 512,
   "PrometheusRemoteFlushMaxConcurrency": 0,
   "PrometheusRemoteFlushMaxPerBody": 0,
   "PrometheusRemoteFlushInterval": 1000,
