@@ -606,16 +606,28 @@ enable_profiling: false
 # # The URL used as the remote write destination
 # prometheus_remote_write_address: "https://destination.api/prometheus/remote/write"
 
-# # (optional) A bearer token to supply as authentication to the above URL
+# # # (optional) A bearer token to supply as authentication to the above URL
 # prometheus_remote_bearer_token: "auth-token"
 
-# # (optional) How many metrics to include in the body of each Remote Write. Veneur
-# # will post multiple times in parallel if the limit is exceeded.
+# # # (optional) In megabytes, the size of the buffer queue for incoming messages
+# # # the default value is 512
+# prometheus_remote_buffer_queue_size: 512
+
+# # # (optional) How many metrics to include in the body of each Remote Write. Veneur
+# # # will post multiple times in parallel if the limit is exceeded.
 # prometheus_remote_flush_max_per_body: 5000
 
-# # (optional) Maximum concurrency of parallel writes. Veneur will queue requests
-# # above this limit when sending parallel requests.
+# # # (optional) Maximum concurrency of parallel writes. Veneur will queue requests
+# # # above this limit when sending parallel requests.
 # prometheus_remote_flush_max_concurrency: 10
+
+# # # (optional) In milliseconds, the wait time between readings from the queue
+# # # the default value is 1000
+# prometheus_remote_flush_interval: 1000
+
+# # # (optional) In seconds, the timeout for each individual request to Remote Write.
+# # # the default value is 35
+# prometheus_remote_flush_timeout: 35
 
 # == PLUGINS ==
 

@@ -1,15 +1,18 @@
 package prometheus
 
 import (
+	"container/list"
 	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
@@ -189,6 +192,8 @@ func TestRemoteWriteMetricFlush(t *testing.T) {
 			BearerToken:         "token",
 			FlushMaxConcurrency: 1,
 			FlushMaxPerBody:     batchSize,
+			FlushTimeout:        35,
+			BufferQueueSize:     512,
 		})
 	assert.NoError(t, err)
 
@@ -264,4 +269,133 @@ func TestParseRemoteWriteConfig(t *testing.T) {
 	assert.Equal(t, prometheusRWConfig.BearerToken, "test_token")
 	assert.Equal(t, prometheusRWConfig.FlushMaxConcurrency, 55)
 	assert.Equal(t, prometheusRWConfig.FlushMaxPerBody, 88)
+}
+
+func TestQueueEnqueueOperations(t *testing.T) {
+	q := NewConcurrentQueue()
+	q.maxByteSize = 100
+	q.byteSize = 0
+	q.list = list.New()
+	q.logger = testLogger()
+
+	ctx := context.Background()
+	id := uuid.New()
+	ts := time.Now()
+
+	req1 := CreateRwRequest(ctx, 40, ts, id)
+	req2 := CreateRwRequest(ctx, 25, ts, id)
+	req3 := CreateRwRequest(ctx, 33, ts, id)
+	req4 := CreateRwRequest(ctx, 27, ts, id)
+	req5 := CreateRwRequest(ctx, 19, ts, id)
+	req6 := CreateRwRequest(ctx, 10, ts, id)
+
+	client := trace.DefaultClient
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(client)
+
+	// normal use-case, append elements in the back of the queue
+	q.Enqueue(span, req1)
+	q.Enqueue(span, req2)
+	q.Enqueue(span, req3)
+
+	// we are still below max queue size
+	assert.Equal(t, q.CurrentQueueByteSize(), 98)
+	AssertQueueState(t, q, []RWRequest{req1, req2, req3})
+
+	// we append an additional element, we must free space in the queue by removing the older ones
+	q.Enqueue(span, req4)
+	assert.Equal(t, q.CurrentQueueByteSize(), 85)
+	AssertQueueState(t, q, []RWRequest{req2, req3, req4})
+
+	// if we try to pre-pend and the queue doesn't have enough space the element is dropped
+	q.EnqueueFront(span, req5)
+	assert.Equal(t, q.CurrentQueueByteSize(), 85)
+	AssertQueueState(t, q, []RWRequest{req2, req3, req4})
+
+	// now there is space, it will be put in the front
+	q.EnqueueFront(span, req6)
+	assert.Equal(t, q.CurrentQueueByteSize(), 95)
+	AssertQueueState(t, q, []RWRequest{req6, req2, req3, req4})
+}
+
+func TestQueueGetFirstBatch(t *testing.T) {
+
+	q := NewConcurrentQueue()
+	q.maxByteSize = 1000
+	q.byteSize = 0
+	q.list = list.New()
+	q.logger = testLogger()
+
+	ctx := context.Background()
+
+	id := uuid.New()
+	id1 := uuid.New()
+	id2 := uuid.New()
+
+	ts := time.Now()
+	ts1 := ts.Add(time.Second * 10)
+	ts2 := ts1.Add(time.Second * 10)
+
+	req1 := CreateRwRequest(ctx, 40, ts, id)
+	req2 := CreateRwRequest(ctx, 25, ts, id)
+	req3 := CreateRwRequest(ctx, 33, ts1, id1)
+	req4 := CreateRwRequest(ctx, 27, ts2, id2)
+	req5 := CreateRwRequest(ctx, 19, ts2, id2)
+	req6 := CreateRwRequest(ctx, 10, ts2, id2)
+
+	client := trace.DefaultClient
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(client)
+
+	q.Enqueue(span, req1)
+	q.Enqueue(span, req2)
+	q.Enqueue(span, req3)
+	q.Enqueue(span, req4)
+	q.Enqueue(span, req5)
+	q.Enqueue(span, req6)
+
+	// first batch will get all requests with "id"
+	AssertOrderedRequests(t, q.GetFirstBatch(), []RWRequest{req1, req2})
+
+	// second batch will get all requests with "id1"
+	AssertOrderedRequests(t, q.GetFirstBatch(), []RWRequest{req3})
+
+	// third batch will get all requests with "id2"
+	AssertOrderedRequests(t, q.GetFirstBatch(), []RWRequest{req4, req5, req6})
+
+	// no more data
+	assert.Empty(t, q.GetFirstBatch())
+	assert.True(t, q.IsEmpty())
+}
+
+func CreateRwRequest(ctx context.Context, size int, ts time.Time, id uuid.UUID) RWRequest {
+	return RWRequest{
+		request:   nil,
+		size:      size,
+		ctx:       ctx,
+		timestamp: ts,
+		id:        id,
+	}
+}
+
+func AssertQueueState(t *testing.T, q *ConcurrentQueue, expectedRequests []RWRequest) {
+	assert.Equal(t, q.list.Len(), len(expectedRequests))
+
+	expectedTotSize := 0
+	it := q.list.Front()
+	for _, expected := range expectedRequests {
+		actual := it.Value
+		assert.Equal(t, expected, actual)
+		it = it.Next()
+		expectedTotSize += expected.size
+	}
+	assert.Equal(t, q.CurrentQueueByteSize(), expectedTotSize)
+}
+
+func AssertOrderedRequests(t *testing.T, actualRequests []list.Element, expectedRequests []RWRequest) {
+	assert.Equal(t, len(actualRequests), len(expectedRequests))
+	for i, expected := range expectedRequests {
+		actual := actualRequests[i].Value
+		assert.Equal(t, expected, actual)
+	}
 }

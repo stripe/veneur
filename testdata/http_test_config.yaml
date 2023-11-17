@@ -87,8 +87,11 @@ percentiles:
 prometheus_network_type: ""
 prometheus_repeater_address: ""
 prometheus_remote_bearer_token: ""
+prometheus_remote_buffer_queue_size: 512
 prometheus_remote_flush_max_concurrency: 0
 prometheus_remote_flush_max_per_body: 0
+prometheus_remote_flush_interval: 1000
+prometheus_remote_flush_timeout: 35
 prometheus_remote_write_address: ""
 read_buffer_size_bytes: 2097152
 sentry_dsn: REDACTED
