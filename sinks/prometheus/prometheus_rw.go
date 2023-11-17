@@ -83,7 +83,7 @@ func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 
 	if newItemSize > q.maxByteSize {
 		q.logger.Error("Enqueue - dropping request because is bigger than queue size! Request size is ", newItemSize, " bytes, max queue size is ", q.maxByteSize, " bytes.")
-		tags := map[string]string{"drop_type": "size_too_big"}
+		tags := map[string]string{"drop_reason": "size_too_big"}
 		span.Add(
 			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), tags),
 		)
@@ -104,7 +104,7 @@ func (q *ConcurrentQueue) Enqueue(span *trace.Span, item RWRequest) {
 			cntDropped += 1
 		}
 		q.logger.Warn("Enqueue - dropped ", cntDropped, " old requests to make room for a new request of size ", newItemSize, " bytes. New queue size is ", q.byteSize, " bytes.")
-		tags := map[string]string{"drop_type": "push_back_make_space"}
+		tags := map[string]string{"drop_reason": "push_back_make_space"}
 		span.Add(
 			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(cntDropped), tags),
 		)
@@ -125,7 +125,7 @@ func (q *ConcurrentQueue) EnqueueFront(span *trace.Span, item RWRequest) {
 	//if there's no space left, don't add the item
 	if q.byteSize+newItemSize > q.maxByteSize {
 		q.logger.Warn("EnqueueFront - dropping a request of size ", newItemSize, " bytes because queue is full.")
-		tags := map[string]string{"drop_type": "push_front_queue_full"}
+		tags := map[string]string{"drop_reason": "push_front_queue_full"}
 		span.Add(
 			ssf.Count(metricRwSinkDroppedPrwsRequestsTotal, float32(1), tags),
 		)
