@@ -365,7 +365,8 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 	semaphoreChan := make(chan struct{}, prw.flushMaxConcurrency)
 	defer close(semaphoreChan)
 
-	queuedRequest := func(request list.Element) {
+	requestsOutcome := make([]bool, len(items))
+	queuedRequest := func(request list.Element, idx int) {
 		wg.Add(1)
 		if prw.flushMaxConcurrency > 0 {
 			// block until the semaphore channel has room
@@ -379,28 +380,37 @@ func (prw *PrometheusRemoteWriteSink) AsyncFlush(items []list.Element) error {
 					<-semaphoreChan
 				}
 			}()
-			prw.flushRequest(span, span.Attach(items[0].Value.(RWRequest).ctx), request, &wg)
+			requestsOutcome[idx] = prw.flushRequest(span, span.Attach(items[0].Value.(RWRequest).ctx), request, &wg)
 		}()
 
 	}
 
-	// flushing all values (the first one of the slice should be metadata) (TODO: check if metadata enabled..)
-	// also calculating total number of metrics for stats
-	totalMetrics := 0
-	for _, v := range items {
-		totalMetrics += v.Value.(RWRequest).totalMetrics
-		queuedRequest(v)
+	for i, v := range items {
+		queuedRequest(v, i)
 	}
 
 	wg.Wait()
+
+	// flushing all values (the first one of the slice should be metadata) (TODO: check if metadata enabled..)
+	// also calculating total number of metrics for stats
+	totalSentMetrics := 0
+	totalFailedMetrics := 0
+	for i, v := range items {
+		if requestsOutcome[i] {
+			totalSentMetrics += v.Value.(RWRequest).totalMetrics
+		} else {
+			totalFailedMetrics += v.Value.(RWRequest).totalMetrics
+		}
+	}
+
 	tags := map[string]string{"sink": prw.Name()}
 	span.Add(
 		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
-		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalMetrics), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalSentMetrics), tags),
 		ssf.Gauge(metricRwSinkQueueSize, float32(queue.CurrentQueueByteSize()), noTags),
 		ssf.Gauge(metricRwSinkMaxQueueSize, float32(queue.maxByteSize), noTags),
 	)
-	prw.logger.WithField("metrics", totalMetrics).Info("Completed flush to Prometheus Remote Write")
+	prw.logger.WithField("sentMetrics", totalSentMetrics).WithField("notSentMetric", totalFailedMetrics).Info("Completed flush operation to Prometheus Remote Write")
 	return nil
 }
 
@@ -481,7 +491,7 @@ func (prw *PrometheusRemoteWriteSink) finalizeMetrics(metrics []samplers.InterMe
 	return promMetrics, promMetadata
 }
 
-func (prw *PrometheusRemoteWriteSink) flushRequest(span *trace.Span, ctx context.Context, item list.Element, wg *sync.WaitGroup) {
+func (prw *PrometheusRemoteWriteSink) flushRequest(span *trace.Span, ctx context.Context, item list.Element, wg *sync.WaitGroup) bool {
 	defer wg.Done()
 
 	httpStatusCode, _, err := prw.store(ctx, item.Value.(RWRequest).request)
@@ -495,10 +505,10 @@ func (prw *PrometheusRemoteWriteSink) flushRequest(span *trace.Span, ctx context
 		if recoverable {
 			// put it back at the top of the queue
 			queue.EnqueueFront(span, item.Value.(RWRequest))
-			return
 		}
+		return false
 	}
-	return
+	return true
 }
 
 func (prw *PrometheusRemoteWriteSink) buildRequest(request prompb.WriteRequest) (req []byte, err error) {
