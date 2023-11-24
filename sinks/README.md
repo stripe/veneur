@@ -9,6 +9,7 @@ Veneur is all about sending observability primitives on to other places.
 * [New Relic](https://github.com/stripe/veneur/tree/master/sinks/newrelic#readme)
 * [SSFMetrics](https://github.com/stripe/veneur/tree/master/sinks/ssfmetrics#readme)
 * [SignalFx](https://github.com/stripe/veneur/tree/master/sinks/signalfx#readme)
+* [Prometeus remote write](../sinks/prometheus/README.md)
 
 # Looking For Something Else?
 
