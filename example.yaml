@@ -52,6 +52,11 @@ tls_authority_certificate: ""
 #forward_address: "veneur.example.com"
 forward_address: ""
 
+# If true: Forward all metrics to the global veneur for aggregation. This is useful
+# when wanting to aggregate a large volume of metrics that all should be global, without
+# needing to explicitly tag them.
+forward_only: false
+
 # How often to flush. When flushing to Datadog, changing this
 # value when you've already emitted metrics will break your time
 # series data.

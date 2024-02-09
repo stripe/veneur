@@ -19,7 +19,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -40,7 +40,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestWorkerLocal(t *testing.T) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -60,7 +60,7 @@ func TestWorkerLocal(t *testing.T) {
 }
 
 func TestWorkerGlobal(t *testing.T) {
-	w := NewWorker(1, false, false, nil, logrus.New(), nil)
+	w := NewWorker(1, false, false, nil, logrus.New(), nil, samplers.MixedScope)
 
 	gc := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -93,7 +93,7 @@ func TestWorkerGlobal(t *testing.T) {
 }
 
 func TestWorkerStatusMetric(t *testing.T) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -223,7 +223,7 @@ type testMetricExporter interface {
 }
 
 func exportMetricAndFlush(t testing.TB, exp testMetricExporter) WorkerMetrics {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 	m, err := exp.Metric()
 	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
 		exp.GetName())
@@ -260,7 +260,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	})
 	t.Run("timer", func(t *testing.T) {
 		t.Parallel()
-		w := NewWorker(1, true, false, nil, logrus.New(), nil)
+		w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 		h := samplers.NewHist("test.timer", nil)
 		h.Sample(1.0, 1.0)
 
@@ -286,7 +286,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 	t.Parallel()
 
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 	metric := &metricpb.Metric{
 		Name:  "test",
 		Type:  metricpb.Type_Histogram,
@@ -389,7 +389,7 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 }
 
 func TestLocalWorkerSampleTimeseries(t *testing.T) {
-	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	w := NewWorker(1, true, true, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -416,7 +416,7 @@ func TestLocalWorkerSampleTimeseries(t *testing.T) {
 }
 
 func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
-	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	w := NewWorker(1, true, true, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -440,7 +440,7 @@ func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
 }
 
 func TestGlobalWorkerSampleTimeseries(t *testing.T) {
-	w := NewWorker(1, false, true, nil, logrus.New(), nil)
+	w := NewWorker(1, false, true, nil, logrus.New(), nil, samplers.MixedScope)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -464,7 +464,7 @@ func TestGlobalWorkerSampleTimeseries(t *testing.T) {
 }
 
 func BenchmarkWork(b *testing.B) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil, samplers.MixedScope)
 
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
@@ -506,7 +506,7 @@ func BenchmarkWork(b *testing.B) {
 }
 
 func BenchmarkWorkWithCountUniqueTimeseries(b *testing.B) {
-	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	w := NewWorker(1, true, true, nil, logrus.New(), nil, samplers.MixedScope)
 
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
@@ -548,7 +548,7 @@ func BenchmarkWorkWithCountUniqueTimeseries(b *testing.B) {
 }
 
 func BenchmarkSampleTimeseries(b *testing.B) {
-	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	w := NewWorker(1, true, true, nil, logrus.New(), nil, samplers.MixedScope)
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
 	for i, _ := range input {

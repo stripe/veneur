@@ -20,6 +20,7 @@ type Config struct {
 	FlushOnShutdown             bool                `yaml:"flush_on_shutdown"`
 	FlushWatchdogMissedFlushes  int                 `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress              string              `yaml:"forward_address"`
+	ForwardOnly                 bool                `yaml:"forward_only"`
 	GrpcAddress                 string              `yaml:"grpc_address"`
 	GrpcListenAddresses         []util.Url          `yaml:"grpc_listen_addresses"`
 	Hostname                    string              `yaml:"hostname"`
