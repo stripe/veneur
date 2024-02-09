@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/stripe/veneur/gh-pages/veneur_logo.svg?sanitize=true">
 </div>
 
-[![Build Status](https://travis-ci.org/stripe/veneur.svg?branch=master)](https://travis-ci.org/stripe/veneur)
+[![Build Status](https://circleci.com/gh/stripe/veneur.svg?style=svg)](https://app.circleci.com/pipelines/github/stripe/veneur)
 [![GoDoc](https://godoc.org/github.com/stripe/veneur?status.svg)](http://godoc.org/github.com/stripe/veneur)
 
 # Table of Contents
@@ -18,6 +18,7 @@
       * [Approximate Histograms](#approximate-histograms)
       * [Approximate Sets](#approximate-sets)
       * [Global Counters](#global-counters)
+      * [Sink Routing](#sink-routing)
    * [Concepts](#concepts)
       * [By Metric Type Behavior](#by-metric-type-behavior)
       * [Expiration](#expiration)
@@ -58,7 +59,7 @@ More generically, Veneur is a convenient sink for various observability primitiv
 
 Once you cross a threshold into dozens, hundreds or (gasp!) thousands of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting except in aggregate form. Instead of paying to store tons of data points and then aggregating them later at read-time, Veneur can calculate global aggregates, like percentiles and forward those along to your time series database, etc.
 
-Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, fowarding the locally collected metrics over more reliable TCP
+Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, forwarding the locally collected metrics over more reliable TCP
 implementations.
 
 Here are some examples of why Stripe and other companies are using Veneur today:
@@ -82,7 +83,7 @@ We wanted percentiles, histograms and sets to be global. We wanted to unify our 
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance! Starting with v1.6, Veneur operates on a six-week release cycle, and all releases are tagged in git. If you'd like to contribute, see [CONTRIBUTING](https://github.com/stripe/veneur/blob/master/CONTRIBUTING.md)!
 
-Building Veneur requires Go 1.9 or later.
+Building Veneur requires Go 1.11 or later.
 
 # Features
 
@@ -121,13 +122,72 @@ Because Veneur is built to handle lots and lots of data, it uses approximate his
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but the resulting percentile values are meant to be more representative of a global view.
 
+### Datadog Distributions
+
+Because Veneur already handles "global" histograms, any DogStatsD packets received with type `d` — [Datadog's distribution type](https://docs.datadoghq.com/developers/metrics/distributions/) — will be considered a histogram and therefore compatible with all sinks. Veneur does **not** send any metrics to Datadog typed as a Datadog-native distribution.
+
 ## Approximate Sets
 
-Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for approximate unique sets. These are a very efficient unique counter with fixed memory consumption.
+Veneur uses [HyperLogLogs](https://github.com/axiomhq/hyperloglog) for approximate unique sets. These are [a very efficient unique counter with fixed memory consumption](https://djhworld.github.io/hyperloglog/).
 
 ## Global Counters
 
 Via an optional [magic tag](#magic-tag) Veneur will forward counters to a global host for accumulation. This feature was primarily developed to control tag cardinality. Some counters are valuable but do not require per-host tagging.
+
+## Sink Routing
+
+Veneur supports routing metrics to specific sinks using the
+`metric_sink_routing` configuration field with the structure:
+
+```
+metric_sink_routing:  # or
+  - name: string
+    match:  # or
+      - name:
+          kind: any | exact | prefix | regex
+          value: string
+        tags:  # and
+          - kind: exact | prefix | regex
+            unset: bool
+            value: string
+    sinks:
+      matched:  # and
+        - string
+      not_matched:  # and
+        - string
+```
+
+The `metric_sink_routing` field contains a list of routing rules, containing a
+name field for identifying the rule in logs, a list of matchers, and sinks. A
+matcher contains a name matcher for matching the name of a metric, and a list of
+tag matchers for matching tags the metric has; the name matcher and all of the
+tag matchers must match in order for the matcher to match a given metric.
+
+The `kind` for the name matcher can be one of `any`, `exact`, `prefix`, or
+`regex`. The name matcher matches a metric name:
+  - `any`: always; the name of the metric is ignored, and the `value` field is
+    unused.
+  - `exact`: if the metric name equals the value field.
+  - `prefix`: if the name starts with the value field.
+  - `regex`: if the name of the metric name matches the regex expression
+    specified in the value field.
+
+The `kind` of the tag matcher can be one of `exact`, `prefix` or `regex`. The
+tag matcher matches a metric tag:
+  - `exact`: if the tag equals the value field.
+  - `prefix`: if the tag starts with the value field.
+  - `regex`: if the tag matches the regex expression specified in the value
+    field.
+
+For a tag matcher to match a given metric, if the `unset` field is not set or is
+`false`, the tag matcher must match at least one tag in the metric; if the
+`unset` field is `true`, the tag matcher must match none of the tags in the
+metric.
+
+If a metric matches any of the entries in the `match` field of a given rule, it
+is flushed to all of the sinks listed in the `matched` field; if a metric
+matches none of the matchers in a given rule, it is sent to all of the sinks
+listed in the `not_matched` section.
 
 # Concepts
 
@@ -159,7 +219,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 veneur -f example.yaml
 ```
 
-See example.yaml for a sample config. Be sure to set your `datadog_api_key`!
+See example.yaml for a sample config. Be sure to set the appropriate `*_api_key`!
 
 # Setup
 
@@ -177,6 +237,7 @@ To use clients with Veneur you need only configure your client of choice to the 
 
 * `statsd_listen_addresses` for UDP- and TCP-based clients
 * `ssf_listen_addresses` for SSF-based clients using UDP or UNIX domain sockets.
+* `grpc_listen_addresses` for both SSF and dogstatsd based clients using GRPC (over TCP).
 
 ## Einhorn Usage
 
@@ -194,11 +255,11 @@ Einhorn handling code to bind to the file descriptor for HTTP.
 
 Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to its configured upstream, which will then flush any recieved metrics when its interval expires.
 
-If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
+If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to sinks, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to sinks.
 
 Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneur instances (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
 
-With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to DataDog. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
+With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to a sink. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
 
 ### Proxy
 
@@ -214,7 +275,7 @@ For static configuration you need one Veneur, which we'll call the _global_ inst
 
 ### Magic Tag
 
-If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
+If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in storage; Veneur removes it.
 
 #### Global Counters And Gauges
 
@@ -223,10 +284,6 @@ Relatedly, if you want to forward a counter or gauge to the global Veneur instan
 **Note**: For global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
 
 **Note**: Global gauges are "random write wins" since they are merged in a non-deterministic order at the global Veneur.
-
-#### Routing metrics
-
-Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
 
 # Configuration
 
@@ -256,8 +313,7 @@ Here are the important things to monitor with Veneur:
 ## At Local Node
 
 When running as a local instance, you will be primarily concerned with the following metrics:
-* `veneur.flush*.error_total` as a count of errors when flushing metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
-* `veneur.flush.total_duration_ns` and `veneur.flush.total_duration_ns.count`. These metrics track the per-host time spent performing a flush to Datadog. The time should be minimal!
+* `veneur.flush*.error_total` as a count of errors when flushing metrics. This should rarely happen. Occasional errors are fine, but sustained is bad.
 
 ### Forwarding
 
@@ -276,16 +332,13 @@ When forwarding you'll want to also monitor the global nodes you're using for ag
 
 Veneur will emit metrics to the `stats_address` configured above in DogStatsD form. Those metrics are:
 
+* `veneur.sink.metric_flush_total_duration_ns.*` - Duration of flushes *per-sink*, tagged by `sink`.
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client. Tagged by `packet_type` and `reason`.
-* `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
 * `veneur.forward.post_metrics_total` - Indicates how many metrics are being forwarded in a given POST request. A "metric", in this context, refers to a unique combination of name, tags and metric type.
 * `veneur.*.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
-* `veneur.flush.duration_ns` - Time taken for a single POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response).
 * `veneur.forward.duration_ns` - Same as `flush.duration_ns`, but for forwarding requests.
-* `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
-* `veneur.flush.error_total` - Number of errors received POSTing to Datadog.
+* `veneur.flush.error_total` - Number of errors received POSTing via sinks.
 * `veneur.forward.error_total` - Number of errors received POSTing to an upstream Veneur. See also `import.request_error_total` below.
-* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 * `veneur.gc.number` - Number of completed GC cycles.
 * `veneur.gc.pause_total_ns` - Total seconds of STW GC since the program started.
 * `veneur.mem.heap_alloc_bytes` - Total number of reachable and unreachable but uncollected heap objects in bytes.
@@ -294,6 +347,7 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.worker.metrics_imported_total` - Total number of metrics received via the importing endpoint. A "metric", in this context, refers to a unique combination of name, tags, type _and originating host_. This metric indicates how much of a Veneur instance's load is coming from imports.
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
+* `veneur.listen.received_per_protocol_total` - A counter for the number of metrics/spans/etc. received by direct listening on global Veneur instances. This can be used to observe metrics that were received from direct emits as opposed to imports. Tagged by `protocol`.
 
 ## Error Handling
 

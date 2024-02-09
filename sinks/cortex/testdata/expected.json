@@ -1,0 +1,70 @@
+{
+  "timeseries": [
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_gauge"
+        },
+        {
+          "name": "baz",
+          "value": "qux"
+        },
+        {
+          "name": "foo",
+          "value": "bar"
+        },
+        {
+          "name": "host",
+          "value": "test"
+        }
+      ],
+      "samples": [
+        {
+          "value": 100,
+          "timestamp": 1000
+        }
+      ]
+    },
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_counter"
+        },
+        {
+          "name": "foo",
+          "value": "bar"
+        },
+        {
+          "name": "host",
+          "value": "test"
+        }
+      ],
+      "samples": [
+        {
+          "value": 2,
+          "timestamp": 1000
+        }
+      ]
+    },
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_status"
+        },
+        {
+          "name": "host",
+          "value": "test"
+        }
+      ],
+      "samples": [
+        {
+          "value": 5,
+          "timestamp": 1000
+        }
+      ]
+    }
+  ]
+}

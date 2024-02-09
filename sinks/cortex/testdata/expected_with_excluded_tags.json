@@ -1,0 +1,50 @@
+{
+  "timeseries": [
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_gauge"
+        },
+        {
+          "name": "baz",
+          "value": "qux"
+        }
+      ],
+      "samples": [
+        {
+          "value": 100,
+          "timestamp": 1000
+        }
+      ]
+    },
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_counter"
+        }
+      ],
+      "samples": [
+        {
+          "value": 2,
+          "timestamp": 1000
+        }
+      ]
+    },
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_status"
+        }
+      ],
+      "samples": [
+        {
+          "value": 5,
+          "timestamp": 1000
+        }
+      ]
+    }
+  ]
+}

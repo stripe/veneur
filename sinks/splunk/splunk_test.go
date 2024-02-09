@@ -1,9 +1,9 @@
 package splunk_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -14,9 +14,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/sinks/splunk"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks/splunk"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/testbackend"
 )
 
 func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
@@ -26,7 +28,10 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 		}
 		failed := false
 		j := json.NewDecoder(r.Body)
-		defer r.Body.Close()
+		defer func() {
+			_, _ = ioutil.ReadAll(r.Body)
+			r.Body.Close()
+		}()
 
 		j.DisallowUnknownFields()
 		for {
@@ -34,6 +39,13 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 			err := j.Decode(&input)
 			if err != nil {
 				if err == io.EOF {
+					return
+				}
+				if err == io.ErrUnexpectedEOF {
+					t.Log("Encountered unexpected EOF, stopping")
+					return
+				}
+				if strings.Contains(err.Error(), "use of closed network connection") {
 					return
 				}
 				t.Errorf("Decoding JSON: %v", err)
@@ -53,15 +65,64 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 	})
 }
 
+func testLogger() *logrus.Entry {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	return logrus.NewEntry(logger)
+}
+
+func TestSinkName(t *testing.T) {
+	ch := make(chan splunk.Event, 10)
+	server := httptest.NewServer(jsonEndpoint(t, ch))
+	sink, err := splunk.Create(
+		&veneur.Server{},
+		"custom-splunk-sink-name",
+		testLogger(),
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  server.URL,
+			HecBatchSize:                10,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
+	require.NoError(t, err)
+	splunkSink := sink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "custom-splunk-sink-name", splunkSink.Name())
+}
+
 func TestSpanIngestBatch(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 1)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -107,12 +168,12 @@ func TestSpanIngestBatch(t *testing.T) {
 		require.NoError(t, err)
 		output := splunk.SerializedSSF{}
 		err = json.Unmarshal(spanB, &output)
-
+		require.NoError(t, err)
 		assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
 		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
 
 		// span IDs can arrive out of order:
-		spanID, err := strconv.Atoi(output.Id)
+		spanID, err := strconv.ParseInt(output.Id, 16, 64)
 		require.NoError(t, err)
 		assert.True(t, spanID < nToFlush+1, "Expected %d to be < %d", spanID, nToFlush)
 		assert.True(t, spanID > 0, "Expected %d to be > 0", spanID)
@@ -127,38 +188,35 @@ func TestSpanIngestBatch(t *testing.T) {
 	sink.Stop()
 }
 
-type testBackend struct {
-	spans chan *ssf.SSFSpan
-}
-
-func (be *testBackend) Close() error {
-	return nil
-}
-
-func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	be.spans <- span
-	return nil
-}
-
-func (be *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func TestTimeout(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Duration(100 * time.Millisecond))
 	}))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(10*time.Millisecond), nToFlush, 0, 1)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(10 * time.Millisecond),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
 	spans := make(chan *ssf.SSFSpan)
-	traceClient, err := trace.NewBackendClient(&testBackend{spans})
+	traceClient, err := trace.NewBackendClient(testbackend.NewBackend(spans))
 	require.NoError(t, err)
 	err = sink.Start(traceClient)
 	require.NoError(t, err)
@@ -189,13 +247,14 @@ func TestTimeout(t *testing.T) {
 	}
 
 	sink.Sync()
-	ms := <-spans
-	require.NotNil(t, ms)
 	var found *ssf.SSFSample
-	for _, sample := range ms.Metrics {
-		if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
-			found = sample
-			break
+readMetrics:
+	for ms := range spans {
+		for _, sample := range ms.Metrics {
+			if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
+				found = sample
+				break readMetrics
+			}
 		}
 	}
 	require.NotNil(t, found, "Expected a timeout metric to be reported")
@@ -207,13 +266,27 @@ const benchmarkCapacity = 100
 const benchmarkWorkers = 3
 
 func BenchmarkBatchIngest(b *testing.B) {
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	// set up a null responder that we can flush to:
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), benchmarkCapacity, benchmarkWorkers, 1)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                benchmarkCapacity,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        benchmarkWorkers,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(b, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -253,12 +326,26 @@ func BenchmarkBatchIngest(b *testing.B) {
 
 func TestSampling(t *testing.T) {
 	const nToFlush = 1000
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -296,8 +383,14 @@ func TestSampling(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	markedPartial := 0
+	for v := range ch {
 		events++
+		if serialized, ok := v.Event.(map[string]interface{}); ok {
+			if _, ok := serialized["partial"].(bool); ok {
+				markedPartial++
+			}
+		}
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
 		// receiver:
@@ -308,18 +401,33 @@ func TestSampling(t *testing.T) {
 		}
 	}
 	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
-	assert.True(t, events < nToFlush/2, "Should have sent less than all the spans, but received %d of %d", events, nToFlush)
-	t.Logf("Received %d of %d events", events, nToFlush)
+	assert.True(t, events < nToFlush/2, "Should have sent less than half the spans, but received %d of %d", events, nToFlush)
+	assert.Equal(t, 0, markedPartial, "Expected `partial` to be omitted from non-indicator spans, but it was there")
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
 func TestSamplingIndicators(t *testing.T) {
 	const nToFlush = 100
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -357,8 +465,14 @@ func TestSamplingIndicators(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	markedPartial := 0
+	for v := range ch {
 		events++
+		if serialized, ok := v.Event.(map[string]interface{}); ok {
+			if bv, ok := serialized["partial"].(bool); ok && bv {
+				markedPartial++
+			}
+		}
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
 		// receiver:
@@ -369,5 +483,187 @@ func TestSamplingIndicators(t *testing.T) {
 		}
 	}
 	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
-	t.Logf("Received %d of %d events", events, nToFlush)
+	assert.True(t, markedPartial > 0, "Should marked around 1/10 of spans as partial, but received zero")
+	assert.True(t, (nToFlush-markedPartial) < nToFlush/2, "Should have marked less than half the spans as partial, but received %d of %d", markedPartial, nToFlush)
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
+}
+
+func TestExcludedTagsIndicators(t *testing.T) {
+	const nToFlush = 100
+	logger := testLogger()
+
+	type excludableSink interface {
+		SetExcludedTags([]string)
+	}
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
+
+	gesink := gsink.(excludableSink)
+	// no farts allowed
+	gesink.SetExcludedTags([]string{"farts"})
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+
+	spans := []*ssf.SSFSpan{{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}, {
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"nofarts": "forbidden",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}}
+
+	for i := 0; i < nToFlush; i++ {
+		span := spans[i%2]
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+	}
+
+	sink.Sync()
+
+	// Ensure nothing sends into the channel anymore:
+	sink.Stop()
+
+	const expectedEvents = nToFlush / 2
+	// check how many events we got:
+	events := 0
+	for range ch {
+		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
+	}
+
+	assert.Equal(t, expectedEvents, events, "Should have sent no spans, but received %d of %d", events, nToFlush)
+}
+
+func TestClosedIngestionEndpoint(t *testing.T) {
+	const nToFlush = 100
+	logger := testLogger()
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	defer func() {
+		ts.Close()
+	}()
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    10 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+
+	breakConnsAt := 20
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+		if i == breakConnsAt {
+			ts.CloseClientConnections()
+		}
+	}
+	sink.Sync()
+	sink.Stop()
+	events := 0
+	for range ch {
+		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
+	}
+	want := breakConnsAt * 3
+	t.Logf("Got %d spans, want %d", events, want)
+	assert.True(t, events > want,
+		"Should have received more than %d spans, but got %d out of %d", want, events, nToFlush)
 }

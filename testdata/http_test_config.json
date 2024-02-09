@@ -1,0 +1,66 @@
+{
+  "Aggregates": [
+    "min",
+    "max",
+    "count"
+  ],
+  "BlockProfileRate": 0,
+  "CountUniqueTimeseries": false,
+  "Debug": false,
+  "EnableProfiling": false,
+  "ExtendTags": null,
+  "Features": {
+    "DiagnosticsMetricsEnabled": false,
+    "EnableMetricSinkRouting": false
+  },
+  "FlushOnShutdown": false,
+  "FlushWatchdogMissedFlushes": 0,
+  "ForwardAddress": "",
+  "GrpcAddress": "",
+  "GrpcListenAddresses": null,
+  "Hostname": "",
+  "HTTP": {
+    "Config": true
+  },
+  "HTTPAddress": "",
+  "HTTPQuit": false,
+  "IndicatorSpanTimerName": "",
+  "Interval": 1000000,
+  "MetricMaxLength": 0,
+  "MetricSinkRouting": null,
+  "MetricSinks": null,
+  "MutexProfileFraction": 0,
+  "NumReaders": 1,
+  "NumSpanWorkers": 0,
+  "NumWorkers": 0,
+  "ObjectiveSpanTimerName": "",
+  "OmitEmptyHostname": false,
+  "Percentiles": [
+    0.5,
+    0.75,
+    0.99
+  ],
+  "ReadBufferSizeBytes": 2097152,
+  "SentryDsn": "REDACTED",
+  "Sources": null,
+  "SpanChannelCapacity": 0,
+  "SpanSinks": null,
+  "SsfListenAddresses": null,
+  "StatsAddress": "localhost:8125",
+  "StatsdListenAddresses": null,
+  "SynchronizeWithInterval": false,
+  "TagsExclude": null,
+  "TLSAuthorityCertificate": "",
+  "TLSCertificate": "",
+  "TLSKey": "",
+  "Tls": null,
+  "TraceMaxLengthBytes": 0,
+  "VeneurMetricsAdditionalTags": null,
+  "VeneurMetricsScopes": {
+    "Counter": "",
+    "Gauge": "",
+    "Histogram": "",
+    "Set": "",
+    "Status": ""
+  }
+}

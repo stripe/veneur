@@ -1,0 +1,149 @@
+version: 2.1
+executors:
+  "stable":
+    docker:
+      - image: golang:1.18
+
+commands:
+  install:
+    description: "Install prerequisites"
+    parameters:
+      protoc_version:
+        type: string
+        default: "3.1.0"
+      protoc_gen_gogofaster_tag:
+        type: string
+        default: "v1.2.1"
+      stringer_tag:
+        type: string
+        default: "v0.1.11"
+      mockgen_tag:
+        type: string
+        default: "v1.6.0"
+      cachebust:
+        type: string
+        default: "1"
+    steps:
+      - restore_cache: &prereq_cache_key
+          key: 'protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_tag>>_mockgen-<<parameters.mockgen_tag>>_{{checksum "/usr/local/go/bin/go" }}_<<parameters.cachebust>>'
+      - run:
+          name: protoc
+          command: |
+            if ! [ -d /opt/protoc ]; then
+              apt-get -q update
+              apt-get install -yq unzip
+              mkdir /opt/protoc
+              wget -O/tmp/protoc.zip https://github.com/google/protobuf/releases/download/v<<parameters.protoc_version>>/protoc-<<parameters.protoc_version>>-linux-x86_64.zip
+              unzip /tmp/protoc.zip -d /opt/protoc
+            fi
+      - run:
+          name: protoc-gen-gogofaster
+          command: |
+            if ! [ -x $GOPATH/bin/protoc-gen-gogofaster ] ; then
+              go install github.com/gogo/protobuf/protoc-gen-gogofaster@<<parameters.protoc_gen_gogofaster_tag>>
+            fi
+      - run:
+          name: mockgen
+          command: |
+            if ! [ -x $GOPATH/bin/mockgen ] ; then
+              go install github.com/golang/mock/mockgen@<<parameters.mockgen_tag>>
+            fi
+      - run:
+          name: stringer
+          command: |
+            if ! [ -x $GOPATH/bin/stringer ] ; then
+              go install golang.org/x/tools/cmd/stringer@<<parameters.stringer_tag>>
+            fi
+      - save_cache:
+          <<: *prereq_cache_key
+          paths:
+            - /opt/protoc
+            - /go/bin/protoc-gen-gogofaster
+            - /go/pkg/mod/github.com/gogo/protobuf@<<parameters.protoc_gen_gogofaster_tag>>
+            - /go/bin/stringer
+  test:
+    description: "Run the tests"
+    steps:
+      - run:
+          name: go test
+          command: |
+            mkdir -p /tmp/test-results/go
+            trap "go install github.com/jstemmer/go-junit-report@v1.0.0 && go-junit-report </tmp/go-test-output.txt > /tmp/test-results/go/test-report.xml" EXIT
+            go test -race -v -timeout 60s ./... | tee /tmp/go-test-output.txt
+      - store_test_results:
+          path: /tmp/test-results/go
+
+jobs:
+  code_hygiene:
+    executor:
+      name: stable
+    working_directory: /go/src/github.com/stripe/veneur
+    environment:
+      GO111MODULE: "on"
+    steps:
+      - install
+      - checkout
+      - run:
+          name: go generate
+          command: |
+            export PATH=$PATH:/opt/protoc/bin
+            go generate -v
+      - run:
+          name: "check if files generated in the previous step (go generate) differ from their committed versions"
+          command: |
+            git add .
+            env PAGER=cat git diff --cached
+            git diff-index --cached --exit-code HEAD
+      - run:
+          name: "gofmt"
+          command: |
+            mv vendor /tmp/veneur-vendor
+            gofmt -w .
+            mv /tmp/veneur-vendor ./vendor
+      - run:
+          name: "check if the previous step (gofmt) formatted any files because the committed versions weren't formatted"
+          command: |
+            git add .
+            env PAGER=cat git diff --cached
+            git diff-index --cached --exit-code HEAD
+
+  test_config:
+    executor:
+      name: stable
+    working_directory: /go/src/github.com/stripe/veneur
+    environment:
+      GO111MODULE: "on"
+    steps:
+      - checkout
+      - run:
+          name: check example.yaml
+          command: |
+            go build -o dist/main cmd/veneur/main.go
+            ./dist/main -f example.yaml -validate-config -validate-config-strict
+
+  test_stable:
+    executor:
+      name: stable
+    working_directory: /go/src/github.com/stripe/veneur
+    environment:
+      GO111MODULE: "on"
+    steps:
+      - checkout
+      - test
+
+workflows:
+  version: 2
+  continuous_integration:
+    jobs:
+      - code_hygiene
+      - test_config
+      - test_stable
+  scheduled_tests:
+    jobs:
+      - test_stable
+    triggers:
+      - schedule:
+          cron: 0 16 * * 1-5
+          filters:
+            branches:
+              only: ["master"]

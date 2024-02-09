@@ -1,15 +1,9 @@
-// Package trace provies an experimental API for initiating
-// traces. Veneur's tracing API also provides
-// an opentracing compatibility layer. The Veneur tracing API
-// is completely independent of the opentracing
-// compatibility layer, with the exception of one convenience
-// function.
 package trace
 
 import (
 	"context"
 	"io"
-	"math/rand"
+	"path"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -17,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
+	"github.com/opentracing/opentracing-go"
+	"golang.org/x/mod/module"
 
-	"github.com/golang/protobuf/proto"
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/internal/fastrand"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // Experimental
@@ -42,8 +36,9 @@ type key string
 
 const traceKey key = "trace"
 
-// Service is our service name and should be set exactly once,
-// at startup
+// Service is our service name and must be set exactly once, by the
+// main package. It is recommended to set this value in an init()
+// function or at the beginning of the main() function.
 var Service = ""
 
 // For an error to be recorded correctly in DataDog, these three tags
@@ -174,7 +169,7 @@ func (t *Trace) Add(samples ...*ssf.SSFSample) {
 // ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
-	packet, err := proto.Marshal(t.SSFSpan())
+	packet, err := t.SSFSpan().Marshal()
 	if err != nil {
 		return err
 	}
@@ -235,25 +230,45 @@ func (t *Trace) Attach(c context.Context) context.Context {
 }
 
 // SpanFromContext is used to create a child span
-// when the parent trace is in the context
+// when the parent trace is in the context.
+//
+// Recommended usage
+//
+// SpanFromContext is considered experimental. Prefer
+// StartSpanFromContext instead.
+//
+// Compatibility with OpenTracing
+//
+// SpanFromContext behaves differently from
+// opentracing.SpanFromContext: The opentracing function returns the
+// exact span that is stored on the Context, but this function
+// allocates a new span with a parent ID set to that of the span
+// stored on the context.
 func SpanFromContext(c context.Context) *Trace {
-	parent, ok := c.Value(traceKey).(*Trace)
-	if !ok {
-		logrus.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
-	}
+	parent := c.Value(traceKey).(*Trace)
 	return StartChildSpan(parent)
 }
 
-// StartSpanFromContext is used to create a child span
-// when the parent trace is in the context
-func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.StartSpanOption) (s *Span, c context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s = nil
-			c = ctx
-		}
-	}()
-
+// StartSpanFromContext creates a span that fits into a span tree -
+// child or root. It makes a new span, find a parent span if it exists
+// on the context and fills in the data in the newly-created span to
+// ensure a proper parent-child relationship (if no parent exists, is
+// sets the new span up as a root Span, i.e., a Trace). Then
+// StartSpanFromContext sets the newly-created span as the current
+// span on a child Context. That child context is returned also.
+//
+// Name inference
+//
+// StartSpanFromContext takes a name argument. If passed "", it will
+// infer the current function's name as the span name.
+//
+// Recommended usage
+//
+// StartSpanFromContext is the recommended way to create trace spans in a
+// program.
+func StartSpanFromContext(
+	ctx context.Context, name string, opts ...opentracing.StartSpanOption,
+) (s *Span, c context.Context) {
 	if name == "" {
 		pc, _, _, ok := runtime.Caller(1)
 		details := runtime.FuncForPC(pc)
@@ -307,40 +322,73 @@ func (t *Trace) contextAsParent() *spanContext {
 // StartTrace is called by to create the root-level span
 // for a trace
 func StartTrace(resource string) *Trace {
-	traceID := proto.Int64(rand.Int63())
+	traceID := fastrand.Int63()
 
 	t := &Trace{
-		TraceID:  *traceID,
-		SpanID:   *traceID,
+		TraceID:  traceID,
+		SpanID:   traceID,
 		ParentID: 0,
 		Resource: resource,
 		Tags:     map[string]string{},
+		Start:    time.Now(),
 	}
 
-	t.Start = time.Now()
 	return t
 }
 
 // StartChildSpan creates a new Span with the specified parent
 func StartChildSpan(parent *Trace) *Trace {
-	spanID := proto.Int64(rand.Int63())
 	span := &Trace{
-		SpanID: *spanID,
+		SpanID: fastrand.Int63(),
+		Start:  time.Now(),
 	}
 
 	span.SetParent(parent)
-	span.Start = time.Now()
 
 	return span
 }
 
 // stripPackageName strips the package name from a function
-// name (as formatted by the runtime package)
+// name (as formatted by the runtime package). If the module has a
+// major version >1 and the function is in the top-level package,
+// it will be reported by the runtime as "module/foo/vN.Bar". This
+// function strips the vN portion so that the above case becomes
+// "foo.Bar".
+// As a special case, gopkg.in paths are recognized directly.
+// They require ".vN" instead of "/vN", and for all N, not just N >= 2.
+// The version suffix is NOT stripped from gopkg.in paths.
 func stripPackageName(name string) string {
+	if strings.HasPrefix(name, "gopkg.in/") {
+		return stripPackageNameGoPkgIn(name)
+	}
+
+	idx := -1
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '/' {
+			break
+		}
+		if name[i] == '.' {
+			idx = i
+		}
+	}
+	if idx == -1 || idx >= len(name) {
+		return name
+	}
+	p, _, ok := module.SplitPathVersion(name[:idx])
+	if !ok {
+		return name
+	}
+
+	return path.Base(p) + name[idx:]
+}
+
+func stripPackageNameGoPkgIn(name string) string {
 	i := strings.LastIndex(name, "/")
 	if i < 0 || i >= len(name)-1 {
 		return name
 	}
 
-	return name[i+1:]
+	// The compiler escapes the package path.
+	// See golang.org/issue/35558
+	return strings.Replace(name[i+1:], "%2e", ".", 1)
 }

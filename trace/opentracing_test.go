@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // Test that the Tracer can correctly create a root-level
@@ -222,6 +222,11 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 	err = tracer.Inject(trace.context(), opentracing.HTTPHeaders, carrier)
 	assert.NoError(t, err)
 
+	assert.NotEqual(t, "", req.Header.Get(defaultHeaderFormat.SpanID),
+		"Headers %v should contain %q", req.Header, defaultHeaderFormat.SpanID)
+	assert.NotEqual(t, "", req.Header.Get(defaultHeaderFormat.TraceID),
+		"Headers %v should contain %q", req.Header, defaultHeaderFormat.TraceID)
+
 	c, err := tracer.Extract(opentracing.HTTPHeaders, carrier)
 	assert.NoError(t, err)
 
@@ -230,7 +235,6 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
 func TestTraceExtractHeaderEnvoy(t *testing.T) {

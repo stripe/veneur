@@ -36,7 +36,7 @@ import (
 	"encoding/binary"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // MaxSSFPacketLength is the maximum length of an SSF packet. This is
@@ -77,20 +77,19 @@ func (e *InvalidTrace) Error() string {
 	return fmt.Sprintf("not a valid trace span: %#v", e.span)
 }
 
-// ValidTrace takes in an SSF span and determines if it is valid or not.
-// It also makes sure the Tags is non-nil, since we use it later.
+// ValidTrace returns true if an SSFSpan contains all data necessary
+// to synthesize a span that can be used as part of a trace.
 func ValidTrace(span *ssf.SSFSpan) bool {
-	ret := true
-	ret = ret && span.Id != 0
-	ret = ret && span.TraceId != 0
-	ret = ret && span.StartTimestamp != 0
-	ret = ret && span.EndTimestamp != 0
-	return ret
+	return span.Id != 0 &&
+		span.TraceId != 0 &&
+		span.StartTimestamp != 0 &&
+		span.EndTimestamp != 0 &&
+		span.Name != ""
 }
 
-// ValidateTrace takes in an SSF span and determines if it is valid or
-// not.  It also makes sure the Tags is non-nil, since we use it
-// later. If the span is not valid, it returns an error.
+// ValidateTrace is identical to ValidTrace, except instead of returning
+// a boolean, it returns a non-nil error if the SSFSpan cannot be interpreted
+// as a span, and nil otherwise.
 func ValidateTrace(span *ssf.SSFSpan) error {
 	if !ValidTrace(span) {
 		return &InvalidTrace{span}

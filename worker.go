@@ -1,53 +1,57 @@
 package veneur
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/scopedstatsd"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
-const counterTypeName = "counter"
-const gaugeTypeName = "gauge"
-const histogramTypeName = "histogram"
-const setTypeName = "set"
-const timerTypeName = "timer"
-const statusTypeName = "status"
+const (
+	CounterTypeName   = "counter"
+	GaugeTypeName     = "gauge"
+	HistogramTypeName = "histogram"
+	SetTypeName       = "set"
+	TimerTypeName     = "timer"
+	StatusTypeName    = "status"
+)
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id               int
-	PacketChan       chan samplers.UDPMetric
-	ImportChan       chan []samplers.JSONMetric
-	ImportMetricChan chan []*metricpb.Metric
-	QuitChan         chan struct{}
-	processed        int64
-	imported         int64
-	mutex            *sync.Mutex
-	traceClient      *trace.Client
-	logger           *logrus.Logger
-	wm               WorkerMetrics
-	stats            *statsd.Client
+	id                    int
+	isLocal               bool
+	countUniqueTimeseries bool
+	uniqueMTS             *hyperloglog.Sketch
+	uniqueMTSMtx          *sync.RWMutex
+	PacketChan            chan samplers.UDPMetric
+	ImportMetricChan      chan *metricpb.Metric
+	QuitChan              chan struct{}
+	processed             int64
+	imported              int64
+	mutex                 *sync.Mutex
+	traceClient           *trace.Client
+	logger                *logrus.Logger
+	wm                    WorkerMetrics
+	stats                 scopedstatsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
 func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
 	w.PacketChan <- metric
-}
-
-func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
-	w.ImportMetricChan <- ms
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
@@ -65,6 +69,10 @@ type WorkerMetrics struct {
 	globalCounters map[samplers.MetricKey]*samplers.Counter
 	// and gauges which are global
 	globalGauges map[samplers.MetricKey]*samplers.Gauge
+	// This means that no histo related stats are emitted locally, not even max min etc.
+	// Instead, everything is forwarded.
+	globalHistograms map[samplers.MetricKey]*samplers.Histo
+	globalTimers     map[samplers.MetricKey]*samplers.Histo
 
 	// these are used for metrics that shouldn't be forwarded
 	localHistograms   map[samplers.MetricKey]*samplers.Histo
@@ -79,6 +87,8 @@ func NewWorkerMetrics() WorkerMetrics {
 		counters:          map[samplers.MetricKey]*samplers.Counter{},
 		globalCounters:    map[samplers.MetricKey]*samplers.Counter{},
 		globalGauges:      map[samplers.MetricKey]*samplers.Gauge{},
+		globalHistograms:  map[samplers.MetricKey]*samplers.Histo{},
+		globalTimers:      map[samplers.MetricKey]*samplers.Histo{},
 		gauges:            map[samplers.MetricKey]*samplers.Gauge{},
 		histograms:        map[samplers.MetricKey]*samplers.Histo{},
 		sets:              map[samplers.MetricKey]*samplers.Set{},
@@ -96,7 +106,7 @@ func NewWorkerMetrics() WorkerMetrics {
 func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope, tags []string) bool {
 	present := false
 	switch mk.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if Scope == samplers.GlobalOnly {
 			if _, present = wm.globalCounters[mk]; !present {
 				wm.globalCounters[mk] = samplers.NewCounter(mk.Name, tags)
@@ -106,7 +116,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.counters[mk] = samplers.NewCounter(mk.Name, tags)
 			}
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if Scope == samplers.GlobalOnly {
 			if _, present = wm.globalGauges[mk]; !present {
 				wm.globalGauges[mk] = samplers.NewGauge(mk.Name, tags)
@@ -116,17 +126,21 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
 			}
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localHistograms[mk]; !present {
 				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
+			}
+		} else if Scope == samplers.GlobalOnly {
+			if _, present = wm.globalHistograms[mk]; !present {
+				wm.globalHistograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.histograms[mk]; !present {
 				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
-	case setTypeName:
+	case SetTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localSets[mk]; !present {
 				wm.localSets[mk] = samplers.NewSet(mk.Name, tags)
@@ -136,17 +150,21 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.sets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localTimers[mk]; !present {
 				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
+			}
+		} else if Scope == samplers.GlobalOnly {
+			if _, present = wm.globalTimers[mk]; !present {
+				wm.globalTimers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.timers[mk]; !present {
 				wm.timers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
-	case statusTypeName:
+	case StatusTypeName:
 		if _, present = wm.localStatusChecks[mk]; !present {
 			wm.localStatusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
 		}
@@ -158,25 +176,40 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 
 // ForwardableMetrics converts all metrics that should be forwarded to
 // metricpb.Metric (protobuf-compatible).
-func (wm WorkerMetrics) ForwardableMetrics(cl *trace.Client) []*metricpb.Metric {
+func (wm WorkerMetrics) ForwardableMetrics(
+	cl *trace.Client, logger *logrus.Entry,
+) []*metricpb.Metric {
 	bufLen := len(wm.histograms) + len(wm.sets) + len(wm.timers) +
 		len(wm.globalCounters) + len(wm.globalGauges)
 
 	metrics := make([]*metricpb.Metric, 0, bufLen)
 	for _, count := range wm.globalCounters {
-		metrics = wm.appendExportedMetric(metrics, count, metricpb.Type_Counter, cl)
+		metrics = wm.appendExportedMetric(
+			metrics, count, metricpb.Type_Counter, cl, samplers.GlobalOnly, logger)
 	}
 	for _, gauge := range wm.globalGauges {
-		metrics = wm.appendExportedMetric(metrics, gauge, metricpb.Type_Gauge, cl)
+		metrics = wm.appendExportedMetric(
+			metrics, gauge, metricpb.Type_Gauge, cl, samplers.GlobalOnly, logger)
 	}
 	for _, histo := range wm.histograms {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Histogram, cl, samplers.MixedScope, logger)
+	}
+	for _, histo := range wm.globalHistograms {
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Histogram, cl, samplers.GlobalOnly, logger)
 	}
 	for _, set := range wm.sets {
-		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl)
+		metrics = wm.appendExportedMetric(
+			metrics, set, metricpb.Type_Set, cl, samplers.MixedScope, logger)
 	}
 	for _, timer := range wm.timers {
-		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl)
+		metrics = wm.appendExportedMetric(
+			metrics, timer, metricpb.Type_Timer, cl, samplers.MixedScope, logger)
+	}
+	for _, histo := range wm.globalTimers {
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Timer, cl, samplers.GlobalOnly, logger)
 	}
 
 	return metrics
@@ -191,10 +224,14 @@ type metricExporter interface {
 // appendExportedMetric appends the exported version of the input metric, with
 // the inputted type.  If the export fails, the original slice is returned
 // and an error is logged.
-func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client) []*metricpb.Metric {
+func (wm WorkerMetrics) appendExportedMetric(
+	res []*metricpb.Metric, exp metricExporter, mType metricpb.Type,
+	cl *trace.Client, scope samplers.MetricScope, logger *logrus.Entry,
+) []*metricpb.Metric {
 	m, err := exp.Metric()
+	m.Scope = scope.ToPB()
 	if err != nil {
-		log.WithFields(logrus.Fields{
+		logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"type":          mType,
 			"name":          exp.GetName(),
@@ -212,20 +249,23 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats *statsd.Client) *Worker {
+func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
-		id:               id,
-		PacketChan:       make(chan samplers.UDPMetric, 32),
-		ImportChan:       make(chan []samplers.JSONMetric, 32),
-		ImportMetricChan: make(chan []*metricpb.Metric, 32),
-		QuitChan:         make(chan struct{}),
-		processed:        0,
-		imported:         0,
-		mutex:            &sync.Mutex{},
-		traceClient:      cl,
-		logger:           logger,
-		wm:               NewWorkerMetrics(),
-		stats:            stats,
+		id:                    id,
+		isLocal:               isLocal,
+		countUniqueTimeseries: countUniqueTimeseries,
+		uniqueMTS:             hyperloglog.New(),
+		uniqueMTSMtx:          &sync.RWMutex{},
+		PacketChan:            make(chan samplers.UDPMetric, 32),
+		ImportMetricChan:      make(chan *metricpb.Metric, 32),
+		QuitChan:              make(chan struct{}),
+		processed:             0,
+		imported:              0,
+		mutex:                 &sync.Mutex{},
+		traceClient:           cl,
+		logger:                logger,
+		wm:                    NewWorkerMetrics(),
+		stats:                 scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -235,18 +275,15 @@ func (w *Worker) Work() {
 	for {
 		select {
 		case m := <-w.PacketChan:
+			if w.countUniqueTimeseries {
+				w.SampleTimeseries(&m)
+			}
 			w.ProcessMetric(&m)
-		case m := <-w.ImportChan:
-			for _, j := range m {
-				w.ImportMetric(j)
-			}
-		case ms := <-w.ImportMetricChan:
-			for _, m := range ms {
-				w.ImportMetricGRPC(m)
-			}
+		case metric := <-w.ImportMetricChan:
+			w.ImportMetric(metric)
 		case <-w.QuitChan:
 			// We have been asked to stop.
-			log.WithField("worker", w.id).Error("Stopping")
+			w.logger.WithField("worker", w.id).Error("Stopping")
 			return
 		}
 	}
@@ -261,9 +298,53 @@ func (w *Worker) MetricsProcessedCount() int64 {
 	return w.processed
 }
 
+// SampleTimeseries takes a metric and counts whether the timeseries
+// has already been seen by the worker in this flush interval.
+func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
+	digest := make([]byte, 8)
+	binary.LittleEndian.PutUint32(digest, m.Digest)
+
+	w.uniqueMTSMtx.RLock()
+	defer w.uniqueMTSMtx.RUnlock()
+
+	// Always sample if worker is running in global Veneur instance,
+	// as there is nowhere the metric can be forwarded to.
+	if !w.isLocal {
+		w.uniqueMTS.Insert(digest)
+		return
+	}
+	// Otherwise, sample the timeseries iff the metric will not be
+	// forwarded to a global Veneur instance.
+	switch m.Type {
+	case CounterTypeName:
+		if m.Scope != samplers.GlobalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case GaugeTypeName:
+		if m.Scope != samplers.GlobalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case HistogramTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case SetTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case TimerTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case StatusTypeName:
+		w.uniqueMTS.Insert(digest)
+	default:
+		w.logger.WithField("type", m.Type).
+			Error("Unknown metric type for counting")
+	}
+}
+
 // ProcessMetric takes a Metric and samples it
-//
-// This is standalone to facilitate testing
 func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
@@ -271,95 +352,66 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.wm.Upsert(m.MetricKey, m.Scope, m.Tags)
 
 	switch m.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if m.Scope == samplers.GlobalOnly {
 			w.wm.globalCounters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.counters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if m.Scope == samplers.GlobalOnly {
 			w.wm.globalGauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else if m.Scope == samplers.GlobalOnly {
+			w.wm.globalHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case setTypeName:
+	case SetTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.wm.localSets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.localSets[m.MetricKey].Sample(m.Value.(string))
 		} else {
-			w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.sets[m.MetricKey].Sample(m.Value.(string))
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else if m.Scope == samplers.GlobalOnly {
+			w.wm.globalTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case statusTypeName:
+	case StatusTypeName:
 		v := float64(m.Value.(ssf.SSFSample_Status))
 		w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 	default:
-		log.WithField("type", m.Type).Error("Unknown metric type for processing")
+		w.logger.WithField("type", m.Type).
+			Error("Unknown metric type for processing")
 	}
 }
 
-// ImportMetric receives a metric from another veneur instance
-func (w *Worker) ImportMetric(other samplers.JSONMetric) {
+// ImportMetric receives a metric from another veneur instance over gRPC.
+//
+// In practice, this is only called when in the aggregation tier, so we don't
+// handle LocalOnly scope.
+func (w *Worker) ImportMetric(other *metricpb.Metric) (err error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	// we don't increment the processed metric counter here, it was already
-	// counted by the original veneur that sent this to us
-	w.imported++
-	if other.Type == counterTypeName || other.Type == gaugeTypeName {
-		// this is an odd special case -- counters that are imported are global
-		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
-	} else {
-		w.wm.Upsert(other.MetricKey, samplers.MixedScope, other.Tags)
-	}
+	key := samplers.NewMetricKeyFromMetric(other, []matcher.TagMatcher{})
 
-	switch other.Type {
-	case counterTypeName:
-		if err := w.wm.globalCounters[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge counters")
-		}
-	case gaugeTypeName:
-		if err := w.wm.globalGauges[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge gauges")
-		}
-	case setTypeName:
-		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge sets")
-		}
-	case histogramTypeName:
-		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge histograms")
-		}
-	case timerTypeName:
-		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge timers")
-		}
-	default:
-		log.WithField("type", other.Type).Error("Unknown metric type for importing")
-	}
-}
-
-// ImportMetricGRPC receives a metric from another veneur instance over gRPC
-func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	key := samplers.NewMetricKeyFromMetric(other)
-
-	scope := samplers.MixedScope
+	scope := samplers.ScopeFromPB(other.Scope)
 	if other.Type == metricpb.Type_Counter || other.Type == metricpb.Type_Gauge {
 		scope = samplers.GlobalOnly
+	}
+
+	if scope == samplers.LocalOnly {
+		return fmt.Errorf("gRPC import does not accept local metrics")
 	}
 
 	w.wm.Upsert(key, scope, other.Tags)
@@ -377,9 +429,17 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	case *metricpb.Metric_Histogram:
 		switch other.Type {
 		case metricpb.Type_Histogram:
-			w.wm.histograms[key].Merge(v.Histogram)
+			if other.Scope == metricpb.Scope_Mixed {
+				w.wm.histograms[key].Merge(v.Histogram)
+			} else if other.Scope == metricpb.Scope_Global {
+				w.wm.globalHistograms[key].Merge(v.Histogram)
+			}
 		case metricpb.Type_Timer:
-			w.wm.timers[key].Merge(v.Histogram)
+			if other.Scope == metricpb.Scope_Mixed {
+				w.wm.timers[key].Merge(v.Histogram)
+			} else if other.Scope == metricpb.Scope_Global {
+				w.wm.globalTimers[key].Merge(v.Histogram)
+			}
 		}
 	case nil:
 		err = errors.New("Can't import a metric with a nil value")
@@ -388,7 +448,7 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	}
 
 	if err != nil {
-		log.WithError(err).WithFields(logrus.Fields{
+		w.logger.WithError(err).WithFields(logrus.Fields{
 			"type":     other.Type,
 			"name":     other.Name,
 			"protocol": "grpc",
@@ -400,7 +460,6 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 
 // Flush resets the worker's internal metrics and returns their contents.
 func (w *Worker) Flush() WorkerMetrics {
-	start := time.Now()
 	// This is a critical spot. The worker can't process metrics while this
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
@@ -415,13 +474,6 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.imported = 0
 	w.mutex.Unlock()
 
-	// Track how much time each worker takes to flush.
-	w.stats.Timing(
-		"flush.worker_duration_ns",
-		time.Since(start),
-		nil,
-		1.0,
-	)
 	w.stats.Count("worker.metrics_processed_total", processed, []string{}, 1.0)
 	w.stats.Count("worker.metrics_imported_total", imported, []string{}, 1.0)
 
@@ -441,16 +493,16 @@ type EventWorker struct {
 	mutex       *sync.Mutex
 	samples     []ssf.SSFSample
 	traceClient *trace.Client
-	stats       *statsd.Client
+	stats       scopedstatsd.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
-func NewEventWorker(cl *trace.Client, stats *statsd.Client) *EventWorker {
+func NewEventWorker(cl *trace.Client, stats scopedstatsd.Client) *EventWorker {
 	return &EventWorker{
 		sampleChan:  make(chan ssf.SSFSample),
 		mutex:       &sync.Mutex{},
 		traceClient: cl,
-		stats:       stats,
+		stats:       scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -470,7 +522,6 @@ func (ew *EventWorker) Work() {
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
 func (ew *EventWorker) Flush() []ssf.SSFSample {
-	start := time.Now()
 	ew.mutex.Lock()
 
 	retsamples := ew.samples
@@ -478,27 +529,33 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 	ew.samples = nil
 
 	ew.mutex.Unlock()
-	ew.stats.Count("worker.other_samples_flushed_total", int64(len(retsamples)), nil, 1.0)
-	ew.stats.TimeInMilliseconds("flush.other_samples_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
+	if len(retsamples) != 0 {
+		ew.stats.Count("worker.other_samples_flushed_total", int64(len(retsamples)), nil, 1.0)
+	}
 	return retsamples
 }
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan   <-chan *ssf.SSFSpan
-	sinkTags   []map[string]string
-	commonTags map[string]string
-	sinks      []sinks.SpanSink
+	SpanChan <-chan *ssf.SSFSpan
+	sinkTags []map[string]string
+	sinks    []sinks.SpanSink
+	logger   *logrus.Entry
 
 	// cumulative time spent per sink, in nanoseconds
 	cumulativeTimes []int64
 	traceClient     *trace.Client
-	statsd          *statsd.Client
+	statsd          scopedstatsd.Client
 	capCount        int64
+	emptySSFCount   int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
+func NewSpanWorker(
+	sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd.Client,
+	spanChan <-chan *ssf.SSFSpan,
+	logger *logrus.Entry,
+) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -510,10 +567,10 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Clie
 		SpanChan:        spanChan,
 		sinks:           sinks,
 		sinkTags:        tags,
-		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
-		statsd:          statsd,
+		statsd:          scopedstatsd.Ensure(statsd),
+		logger:          logger,
 	}
 }
 
@@ -528,13 +585,18 @@ func (tw *SpanWorker) Work() {
 			atomic.AddInt64(&tw.capCount, 1)
 		}
 
-		if m.Tags == nil && len(tw.commonTags) != 0 {
-			m.Tags = make(map[string]string, len(tw.commonTags))
-		}
-
-		for k, v := range tw.commonTags {
-			if _, has := m.Tags[k]; !has {
-				m.Tags[k] = v
+		// An SSF packet may contain a valid span, one or more valid metrics,
+		// or both (a valid span *and* one or more valid metrics).
+		// If it contains neither, it is the result of a client error, and the
+		// span does not need to be passed to any sink.
+		// If the span is empty but one or more metrics exist, the span still needs
+		// to be passed to the sinks for potential metric extraction.
+		if err := protocol.ValidateTrace(m); err != nil {
+			if len(m.Metrics) == 0 {
+				atomic.AddInt64(&tw.emptySSFCount, 1)
+				tw.logger.WithError(err).Debug(
+					"Invalid SSF packet: packet contains neither valid metrics nor a valid span")
+				continue
 			}
 		}
 
@@ -571,7 +633,7 @@ func (tw *SpanWorker) Work() {
 				select {
 				case _ = <-done:
 				case <-time.After(Timeout):
-					log.WithFields(logrus.Fields{
+					tw.logger.WithFields(logrus.Fields{
 						"sink":  sink.Name(),
 						"index": i,
 					}).Error("Timed out on sink ingestion")
@@ -612,4 +674,5 @@ func (tw *SpanWorker) Flush() {
 
 	metrics.Report(tw.traceClient, samples)
 	tw.statsd.Count("worker.span.hit_chan_cap", atomic.SwapInt64(&tw.capCount, 0), nil, 1.0)
+	tw.statsd.Count("worker.ssf.empty_total", atomic.SwapInt64(&tw.emptySSFCount, 0), nil, 1.0)
 }

@@ -9,13 +9,14 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/url"
 	"time"
 
 	"sync/atomic"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func init() {
@@ -57,14 +58,15 @@ type Client struct {
 	flushBackends []flushNotifier
 
 	// Parameters adjusted by client initialization:
-	backendParams *backendParams
-	nBackends     uint
-	cap           uint
-	cancel        context.CancelFunc
-	flush         func(context.Context)
-	report        func(context.Context)
-	records       chan *recordOp
-	spans         chan<- *ssf.SSFSpan
+	backendParams    *backendParams
+	nBackends        uint
+	cap              uint
+	cancel           context.CancelFunc
+	flush            func(context.Context)
+	report           func(context.Context)
+	records          chan *recordOp
+	spans            chan<- *ssf.SSFSpan
+	sampleNormalizer func(*ssf.SSFSample)
 
 	// statistics:
 	failedFlushes     int64
@@ -285,6 +287,20 @@ func ParallelBackends(nBackends uint) ClientParam {
 	}
 }
 
+// NormalizeSamples takes a function that gets run on every SSFSample
+// reported as part of a span. This allows conditionally adjusting
+// tags or scopes on metrics that might exceed cardinality limits.
+//
+// Note that the normalizer gets run on Samples every time the
+// trace.Report function is called. This happen more than once,
+// depending on the error handling behavior of the reporting program.
+func NormalizeSamples(normalizer func(*ssf.SSFSample)) ClientParam {
+	return func(cl *Client) error {
+		cl.sampleNormalizer = normalizer
+		return nil
+	}
+}
+
 func newFlushNofifier(backend ClientBackend) flushNotifier {
 	fb := flushNotifier{backend: backend}
 	if _, ok := backend.(FlushableClientBackend); ok {
@@ -296,14 +312,14 @@ func newFlushNofifier(backend ClientBackend) flushNotifier {
 // NewClient constructs a new client that will attempt to connect
 // to addrStr (an address in veneur URL format) using the parameters
 // in opts. It returns the constructed client or an error.
-func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
+func NewClient(url *url.URL, opts ...ClientParam) (*Client, error) {
 	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
 	}
 	rand.Seed(n.Int64())
 
-	addr, err := protocol.ResolveAddr(addrStr)
+	addr, err := protocol.ResolveAddr(url)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +445,10 @@ const DefaultParallelism = 8
 
 // DefaultVeneurAddress is the address that a reasonable veneur should
 // listen on. Currently it defaults to UDP port 8128.
-const DefaultVeneurAddress string = "udp://127.0.0.1:8128"
+var DefaultVeneurAddress = &url.URL{
+	Scheme: "udp",
+	Host:   "127.0.0.1:8128",
+}
 
 // ErrNoClient indicates that no client is yet initialized.
 var ErrNoClient = errors.New("client is not initialized")
@@ -438,14 +457,24 @@ var ErrNoClient = errors.New("client is not initialized")
 // the current time.
 var ErrWouldBlock = errors.New("sending span would block")
 
+// StatsCounter is an interface corresponding to statsd's. It's useful
+// for stubbing in tests to validate the right statistics get sent.
+type StatsCounter interface {
+	Count(metric string, n int64, tags []string, rate float64) error
+}
+
 // SendClientStatistics uses the client's recorded backpressure
 // statistics (failed/successful flushes, failed/successful records)
 // and reports them with the given statsd client, and resets the
 // statistics to zero again.
-func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
-	stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+func SendClientStatistics(cl *Client, stats StatsCounter, tags []string) {
+	if atomic.LoadInt64(&cl.failedFlushes) != 0 {
+		stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+	}
 	stats.Count("trace_client.flushes_succeeded_total", atomic.SwapInt64(&cl.successfulFlushes, 0), tags, 1.0)
-	stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	if atomic.LoadInt64(&cl.failedRecords) != 0 {
+		stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	}
 	stats.Count("trace_client.records_succeeded_total", atomic.SwapInt64(&cl.successfulRecords, 0), tags, 1.0)
 }
 
@@ -459,6 +488,13 @@ func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
 func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
+	}
+
+	// fixup any samples:
+	if cl.sampleNormalizer != nil {
+		for _, sample := range span.Metrics {
+			cl.sampleNormalizer(sample)
+		}
 	}
 
 	op := &recordOp{span: span, result: done}

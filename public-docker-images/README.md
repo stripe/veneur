@@ -1,23 +1,16 @@
 # Veneur, in Docker
 
-This folder holds the Docker resources for building [Veneur](https://github.com/stripe/veneur), and a sample systemd unit for running it. It lives in the Veneur repository, but currently clones from Github, so the state of the repository you build in is unrelated to the output.
+This folder holds the Docker resources for building [Veneur](https://github.com/stripe/veneur), and a sample systemd unit for running it.
 
 ## Building
-
-The `--no-cache` argument may be necessary to fetch the latest commits from Github, unless you're building a specific version tag.
-
+For the Debian-based image:
 ```
-public-docker-images$ docker build --no-cache -t veneur:local -f Dockerfile-debian-sid .
+docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
 ```
 
 For the Alpine Linux-based image:
 ```
-public-docker-images$ docker build --no-cache -t veneur:local -f Dockerfile-alpine .
-```
-
-For a specific tag or branch:
-```
-public-docker-images$ docker build -t veneur:local --build-arg BUILD_REF='tag-or-branch' -f Dockerfile-debian-sid .
+docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
 ```
 
 ## Running

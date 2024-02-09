@@ -1,0 +1,59 @@
+aggregates:
+  - min
+  - max
+  - count
+block_profile_rate: 0
+count_unique_timeseries: false
+debug: false
+enable_profiling: false
+extend_tags: []
+features:
+  diagnostics_metrics_enabled: false
+  enable_metric_sink_routing: false
+flush_on_shutdown: false
+flush_watchdog_missed_flushes: 0
+forward_address: ""
+grpc_address: ""
+grpc_listen_addresses: []
+hostname: ""
+http:
+  config: true
+http_address: ""
+http_quit: false
+indicator_span_timer_name: ""
+interval: 1ms
+metric_max_length: 0
+metric_sink_routing: []
+metric_sinks: []
+mutex_profile_fraction: 0
+num_readers: 1
+num_span_workers: 0
+num_workers: 0
+objective_span_timer_name: ""
+omit_empty_hostname: false
+percentiles:
+  - 0.5
+  - 0.75
+  - 0.99
+read_buffer_size_bytes: 2097152
+sentry_dsn: REDACTED
+sources: []
+span_channel_capacity: 0
+span_sinks: []
+ssf_listen_addresses: []
+stats_address: localhost:8125
+statsd_listen_addresses: []
+synchronize_with_interval: false
+tags_exclude: []
+tls_authority_certificate: ""
+tls_certificate: ""
+tls_key: ""
+tls: null
+trace_max_length_bytes: 0
+veneur_metrics_additional_tags: []
+veneur_metrics_scopes:
+  counter: ""
+  gauge: ""
+  histogram: ""
+  set: ""
+  status: ""

@@ -1,25 +1,25 @@
 package veneur
 
 import (
-	"context"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/testbackend"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -40,7 +40,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestWorkerLocal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -60,7 +60,7 @@ func TestWorkerLocal(t *testing.T) {
 }
 
 func TestWorkerGlobal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, false, false, nil, logrus.New(), nil)
 
 	gc := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -92,38 +92,8 @@ func TestWorkerGlobal(t *testing.T) {
 	assert.Equal(t, 0, len(w.wm.counters), "should have no local counters")
 }
 
-func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
-	testset := samplers.NewSet("a.b.c", nil)
-	testset.Sample("foo", 1.0)
-	testset.Sample("bar", 1.0)
-
-	jsonMetric, err := testset.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	w.ImportMetric(jsonMetric)
-
-	wm := w.Flush()
-	assert.Len(t, wm.sets, 1, "number of flushed sets")
-}
-
-func TestWorkerImportHistogram(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
-	testhisto := samplers.NewHist("a.b.c", nil)
-	testhisto.Sample(1.0, 1.0)
-	testhisto.Sample(2.0, 1.0)
-
-	jsonMetric, err := testhisto.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	w.ImportMetric(jsonMetric)
-
-	wm := w.Flush()
-	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
-}
-
 func TestWorkerStatusMetric(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -154,11 +124,6 @@ func TestWorkerStatusMetric(t *testing.T) {
 
 func TestSpanWorkerTagApplication(t *testing.T) {
 	tags := map[string]func() map[string]string{
-		"foo": func() map[string]string {
-			return map[string]string{
-				"foo": "bar",
-			}
-		},
 		"foo2": func() map[string]string {
 			return map[string]string{
 				"foo": "other",
@@ -171,7 +136,6 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 		},
 		"both": func() map[string]string {
 			return map[string]string{
-				"foo": "bar",
 				"baz": "qux",
 			}
 		},
@@ -203,8 +167,11 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 	spanChanNone := make(chan *ssf.SSFSpan)
 	spanChanFoo := make(chan *ssf.SSFSpan)
 
-	go NewSpanWorker([]sinks.SpanSink{fake}, cl, nil, spanChanNone, nil).Work()
-	go NewSpanWorker([]sinks.SpanSink{fake}, cl, nil, spanChanFoo, tags["foo"]()).Work()
+	logger := logrus.NewEntry(logrus.New())
+	go NewSpanWorker(
+		[]sinks.SpanSink{fake}, cl, nil, spanChanNone, logger).Work()
+	go NewSpanWorker(
+		[]sinks.SpanSink{fake}, cl, nil, spanChanFoo, logger).Work()
 
 	sendAndWait := func(spanChan chan<- *ssf.SSFSpan, span *ssf.SSFSpan) {
 		fake.wg.Add(1)
@@ -216,14 +183,6 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 	// span already
 	sendAndWait(spanChanNone, testSpan(nil))
 	require.Nil(t, fake.latestSpan().Tags)
-
-	// Change nothing when commonTags is nil
-	sendAndWait(spanChanNone, testSpan(tags["foo"]()))
-	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
-
-	// Allocate map and add tags if no map on span and there are commonTags
-	sendAndWait(spanChanFoo, testSpan(nil))
-	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
 
 	// Do not override existing tags if keys match
 	sendAndWait(spanChanFoo, testSpan(tags["foo2"]()))
@@ -251,26 +210,9 @@ func (s *fakeSpanSink) Ingest(span *ssf.SSFSpan) error {
 	return nil
 }
 
-type testBackend struct {
-	spans chan *ssf.SSFSpan
-}
-
-func (be *testBackend) Close() error {
-	return nil
-}
-
-func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	be.spans <- span
-	return nil
-}
-
-func (be *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func newTestClient(t *testing.T, num int) (*trace.Client, chan *ssf.SSFSpan) {
 	ch := make(chan *ssf.SSFSpan, num)
-	cl, err := trace.NewBackendClient(&testBackend{ch})
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch))
 	require.NoError(t, err)
 	return cl, ch
 }
@@ -281,12 +223,12 @@ type testMetricExporter interface {
 }
 
 func exportMetricAndFlush(t testing.TB, exp testMetricExporter) WorkerMetrics {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	m, err := exp.Metric()
 	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
 		exp.GetName())
 
-	assert.NoError(t, w.ImportMetricGRPC(m), "importing a metric shouldn't "+
+	assert.NoError(t, w.ImportMetric(m), "importing a metric shouldn't "+
 		"have failed")
 	return w.Flush()
 }
@@ -318,7 +260,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	})
 	t.Run("timer", func(t *testing.T) {
 		t.Parallel()
-		w := NewWorker(1, nil, logrus.New(), nil)
+		w := NewWorker(1, true, false, nil, logrus.New(), nil)
 		h := samplers.NewHist("test.timer", nil)
 		h.Sample(1.0, 1.0)
 
@@ -326,7 +268,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 		assert.NoErrorf(t, err, "exporting the histogram shouldn't have failed")
 		m.Type = metricpb.Type_Timer
 
-		assert.NoError(t, w.ImportMetricGRPC(m), "importing a timer shouldn't "+
+		assert.NoError(t, w.ImportMetric(m), "importing a timer shouldn't "+
 			"have failed")
 		assert.Len(t, w.Flush().timers, 1, "The number of flushed "+
 			"timers is not correct")
@@ -334,7 +276,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	t.Run("set", func(t *testing.T) {
 		t.Parallel()
 		s := samplers.NewSet("test.set", nil)
-		s.Sample("value", 1.0)
+		s.Sample("value")
 
 		assert.Len(t, exportMetricAndFlush(t, s).sets, 1,
 			"The number of flushed sets is not correct")
@@ -344,14 +286,14 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 	t.Parallel()
 
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	metric := &metricpb.Metric{
 		Name:  "test",
 		Type:  metricpb.Type_Histogram,
 		Value: nil,
 	}
 
-	assert.Error(t, w.ImportMetricGRPC(metric), "Importing a metric with "+
+	assert.Error(t, w.ImportMetric(metric), "Importing a metric with "+
 		"a nil value should have failed")
 }
 
@@ -377,12 +319,12 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 				testMetric{
 					name:  "test.gauge",
 					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
+					mType: GaugeTypeName,
 				},
 				testMetric{
 					name:  "test.counter",
 					scope: samplers.LocalOnly,
-					mType: counterTypeName,
+					mType: CounterTypeName,
 				},
 			},
 			expected: []testMetric{},
@@ -393,19 +335,19 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 				testMetric{
 					name:  "test.gauge",
 					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
+					mType: GaugeTypeName,
 				},
 				testMetric{
 					name:  "test.mixed.histo",
 					scope: samplers.MixedScope,
-					mType: histogramTypeName,
+					mType: HistogramTypeName,
 				},
 			},
 			expected: []testMetric{
 				testMetric{
 					name:  "test.mixed.histo",
 					scope: samplers.MixedScope,
-					mType: histogramTypeName,
+					mType: HistogramTypeName,
 				},
 			},
 		},
@@ -427,7 +369,8 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 				wm.Upsert(mk, m.scope, []string{})
 			}
 
-			ms := wm.ForwardableMetrics(nil)
+			logger := logrus.NewEntry(logrus.New())
+			ms := wm.ForwardableMetrics(nil, logger)
 
 			// Convert all of the forwardable metrics into testMetric's
 			// and then compare them
@@ -442,5 +385,203 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 			assert.ElementsMatch(t, tc.expected, actual,
 				"The output of ForwardableMetrics doesn't have the right metrics")
 		})
+	}
+}
+
+func TestLocalWorkerSampleTimeseries(t *testing.T) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.MixedScope,
+	}
+	w.SampleTimeseries(&m)
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
+	w.SampleTimeseries(&m)
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
+}
+
+func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.MixedScope,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.GlobalOnly,
+	}
+	w.SampleTimeseries(&m)
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(0), w.uniqueMTS.Estimate())
+}
+
+func TestGlobalWorkerSampleTimeseries(t *testing.T) {
+	w := NewWorker(1, false, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.GlobalOnly,
+	}
+	w.SampleTimeseries(&m)
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
+}
+
+func BenchmarkWork(b *testing.B) {
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: CounterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = GaugeTypeName
+		case 2:
+			m.MetricKey.Type = HistogramTypeName
+		case 3:
+			m.MetricKey.Type = SetTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = TimerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	go w.Work()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.PacketChan <- *input[i%Len]
+	}
+	w.Stop()
+}
+
+func BenchmarkWorkWithCountUniqueTimeseries(b *testing.B) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: CounterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = GaugeTypeName
+		case 2:
+			m.MetricKey.Type = HistogramTypeName
+		case 3:
+			m.MetricKey.Type = SetTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = TimerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	go w.Work()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.PacketChan <- *input[i%Len]
+	}
+	w.Stop()
+}
+
+func BenchmarkSampleTimeseries(b *testing.B) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: CounterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = GaugeTypeName
+		case 2:
+			m.MetricKey.Type = HistogramTypeName
+		case 3:
+			m.MetricKey.Type = SetTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = TimerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.SampleTimeseries(input[i%Len])
 	}
 }

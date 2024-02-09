@@ -3,10 +3,10 @@ package blackhole
 import (
 	"context"
 
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 type blackholeMetricSink struct {
@@ -25,12 +25,16 @@ func (b *blackholeMetricSink) Name() string {
 	return "blackhole"
 }
 
+func (b *blackholeMetricSink) Kind() string {
+	return "blackhole"
+}
+
 func (b *blackholeMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) error {
-	return nil
+func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) (sinks.MetricFlushResult, error) {
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (b *blackholeMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

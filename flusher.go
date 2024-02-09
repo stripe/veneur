@@ -3,7 +3,6 @@ package veneur
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
@@ -11,15 +10,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/forwardrpc"
-	vhttp "github.com/stripe/veneur/http"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/matcher"
 	"google.golang.org/grpc/status"
 )
 
@@ -31,83 +30,231 @@ func (s *Server) Flush(ctx context.Context) {
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
+	flushTime := time.Now().UnixNano()
+	atomic.StoreInt64(&s.lastFlushUnix, flushTime)
+
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
-	s.Statsd.Gauge("gc.GCCPUFraction", float64(mem.GCCPUFraction), nil, 1.0)
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
-	s.Statsd.Gauge("gc.alloc_heap_bytes_total", float64(mem.TotalAlloc), nil, 1.0)
-	s.Statsd.Gauge("gc.mallocs_objects_total", float64(mem.Mallocs), nil, 1.0)
-	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
+
+	if s.CountUniqueTimeseries {
+		s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
+	}
 
 	samples := s.EventWorker.Flush()
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
-		sink.FlushOtherSamples(span.Attach(ctx), samples)
+		sink.sink.FlushOtherSamples(span.Attach(ctx), samples)
 	}
 
 	go s.flushTraces(span.Attach(ctx))
 
-	// don't publish percentiles if we're a local veneur; that's the global
-	// veneur's job
-	var percentiles []float64
 	var finalMetrics []samplers.InterMetric
 
+	// This ensures that mixedscope histograms and timers behave correctly.
+	// That is, they should emit aggregates when forwarding, but no percentiles.
+	// Similarly, they should emit percentiles when global, but no aggregates.
+	//
+	// This serves two purposes:
+	//   * Percentiles are only accurate when aggregated globally.
+	//   * Avoid double counting and breaking existing queries (if count is also
+	//     emitted globally, queries that sum over counts double!)
+	var percentiles []float64
+	aggregates := s.HistogramAggregates
 	if !s.IsLocal() {
 		percentiles = s.HistogramPercentiles
+		aggregates = samplers.HistogramAggregates{}
 	}
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
+	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
+	wg := sync.WaitGroup{}
+	defer wg.Wait()
+
 	if s.IsLocal() {
-		// Forward over gRPC or HTTP depending on the configuration
-		if s.forwardUseGRPC {
-			go s.forwardGRPC(span.Attach(ctx), tempMetrics)
-		} else {
-			go s.flushForward(span.Attach(ctx), tempMetrics)
-		}
+		wg.Add(1)
+		go func() {
+			s.forward(span.Attach(ctx), tempMetrics)
+			wg.Done()
+		}()
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
+		s.reportGlobalReceivedProtocolMetrics()
 	}
 
-	// If there's nothing to flush, don't bother calling the plugins and stuff.
+	// Return early if there's nothing to flush.
 	if len(finalMetrics) == 0 {
 		return
 	}
 
-	wg := sync.WaitGroup{}
+	if s.Config.Features.EnableMetricSinkRouting {
+		for index := range finalMetrics {
+			metric := &finalMetrics[index]
+			metric.Sinks = make(samplers.RouteInformation)
+			for _, config := range s.Config.MetricSinkRouting {
+				var sinks []string
+				if matcher.Match(config.Match, metric.Name, metric.Tags) {
+					sinks = config.Sinks.Matched
+				} else {
+					sinks = config.Sinks.NotMatched
+				}
+				for _, sink := range sinks {
+					metric.Sinks[sink] = struct{}{}
+				}
+			}
+		}
+	}
+
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
-		go func(ms sinks.MetricSink) {
-			err := ms.Flush(span.Attach(ctx), finalMetrics)
-			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
-			}
+		go func(sink internalMetricSink) {
+			s.flushSink(ctx, sink, finalMetrics)
 			wg.Done()
 		}(sink)
 	}
-	wg.Wait()
+}
 
-	go func() {
-		samples := &ssf.Samples{}
-		defer metrics.Report(s.TraceClient, samples)
+func (s *Server) flushSink(
+	ctx context.Context, sink internalMetricSink, metrics []samplers.InterMetric,
+) {
+	flushStart := time.Now()
 
-		tags := map[string]string{"part": "post"}
-		for _, p := range s.getPlugins() {
-			start := time.Now()
-			err := p.Flush(span.Attach(ctx), finalMetrics)
-			samples.Add(ssf.Timing(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), time.Since(start), time.Nanosecond, tags))
-			if err != nil {
-				samples.Add(ssf.Count(fmt.Sprintf("flush.plugins.%s.error_total", p.Name()), 1, nil))
+	skippedCount := int64(0)
+	maxNameLengthCount := int64(0)
+	maxTagsCount := int64(0)
+	maxTagLengthCount := int64(0)
+	flushedCount := int64(0)
+
+	sinkNameTag := "sink_name:" + sink.sink.Name()
+	sinkKindTag := "sink_kind:" + sink.sink.Kind()
+
+	filteredMetrics := metrics
+	if s.Config.Features.EnableMetricSinkRouting {
+		sinkName := sink.sink.Name()
+		filteredMetrics = []samplers.InterMetric{}
+	metricLoop:
+		for _, metric := range metrics {
+			_, ok := metric.Sinks[sinkName]
+			if !ok {
+				skippedCount += 1
+				continue metricLoop
 			}
-			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
+			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
+				s.Statsd.Count("dropped_metrics", 1, []string{
+					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_name_length", "veneurglobalonly:true",
+				}, 1)
+
+				maxNameLengthCount += 1
+				continue metricLoop
+			}
+
+			filteredTags := []string{}
+			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
+				filteredTags = metric.Tags
+			} else {
+			tagLoop:
+				for _, tag := range metric.Tags {
+					for _, tagMatcher := range sink.stripTags {
+						if tagMatcher.Match(tag) {
+							continue tagLoop
+						}
+					}
+					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+						s.Statsd.Count("dropped_metrics", 1, []string{
+							sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tag_length", "veneurglobalonly:true",
+						}, 1)
+						maxTagLengthCount += 1
+						continue metricLoop
+					}
+					filteredTags = append(filteredTags, tag)
+				}
+			}
+
+			// For any addTag, append our filteredTags, unless it would overwrite an existing tag
+			// Note: if a tag was removed from stripTags above, then that tag could effectively be overwritten
+			for k, v := range sink.addTags {
+				tag := fmt.Sprintf("%s:%s", k, v)
+				if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+					maxTagLengthCount += 1
+					continue metricLoop
+				}
+
+				skipped := false
+				for _, ft := range filteredTags {
+					if strings.HasPrefix(ft, k) {
+						skipped = true
+						break
+					}
+				}
+
+				if !skipped {
+					filteredTags = append(filteredTags, tag)
+				}
+			}
+
+			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
+				s.Statsd.Count("dropped_metrics", 1, []string{
+					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tags", "veneurglobalonly:true",
+				}, 1)
+				maxTagsCount += 1
+				continue metricLoop
+			}
+			metric.Tags = filteredTags
+			flushedCount += 1
+			filteredMetrics = append(filteredMetrics, metric)
 		}
-	}()
+	}
+
+	s.Statsd.Count("flushed_metrics", skippedCount, []string{
+		sinkNameTag, sinkKindTag, "status:skipped", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxNameLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_name_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagsCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tags", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tag_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", flushedCount, []string{
+		sinkNameTag, sinkKindTag, "status:flushed", "veneurglobalonly:true",
+	}, 1)
+	flushResult, err := sink.sink.Flush(ctx, filteredMetrics)
+	flushCompleteMessageFields := logrus.Fields{
+		"sink_name":  sink.sink.Name(),
+		"sink_kind":  sink.sink.Kind(),
+		"flushed":    flushResult.MetricsFlushed,
+		"skipped":    flushResult.MetricsSkipped,
+		"dropped":    flushResult.MetricsDropped,
+		"duration_s": fmt.Sprintf("%.2f", time.Since(flushStart).Seconds()),
+	}
+	if err == nil {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
+	} else {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).WithError(err).Warn(sinks.FlushCompleteMessage)
+	}
+	s.Statsd.Timing(
+		sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+		[]string{sinkNameTag, sinkKindTag}, 1.0)
+}
+
+func (s *Server) tallyTimeseries() int64 {
+	allTimeseries := hyperloglog.New()
+	for _, w := range s.Workers {
+		w.uniqueMTSMtx.Lock()
+		allTimeseries.Merge(w.uniqueMTS)
+		w.uniqueMTS = hyperloglog.New()
+		w.uniqueMTSMtx.Unlock()
+	}
+	return int64(allTimeseries.Estimate())
 }
 
 type metricsSummary struct {
@@ -117,8 +264,10 @@ type metricsSummary struct {
 	totalSets       int
 	totalTimers     int
 
-	totalGlobalCounters int
-	totalGlobalGauges   int
+	totalGlobalCounters   int
+	totalGlobalGauges     int
+	totalGlobalHistograms int
+	totalGlobalTimers     int
 
 	totalLocalHistograms   int
 	totalLocalSets         int
@@ -127,6 +276,8 @@ type metricsSummary struct {
 
 	totalLength int
 }
+
+const perProtocolTotalMetricName string = "listen.received_per_protocol_total"
 
 // tallyMetrics gives a slight overestimate of the number
 // of metrics we'll be reporting, so that we can pre-allocate
@@ -137,11 +288,10 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	// the []WorkerMetrics together one at a time
 	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
 
-	gatherStart := time.Now()
 	ms := metricsSummary{}
 
 	for i, w := range s.Workers {
-		log.WithField("worker", i).Debug("Flushing")
+		s.logger.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
 
@@ -153,6 +303,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 		ms.totalGlobalCounters += len(wm.globalCounters)
 		ms.totalGlobalGauges += len(wm.globalGauges)
+		ms.totalGlobalHistograms += len(wm.globalHistograms)
+		ms.totalGlobalTimers += len(wm.globalTimers)
 
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
@@ -160,8 +312,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 		ms.totalLocalStatusChecks += len(wm.localStatusChecks)
 	}
-
-	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(gatherStart), time.Nanosecond, map[string]string{"part": "gather"}))
 
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
@@ -179,6 +329,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLength += ms.totalSets
 		ms.totalLength += ms.totalGlobalCounters
 		ms.totalLength += ms.totalGlobalGauges
+		ms.totalLength += ms.totalGlobalHistograms * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
+		ms.totalLength += ms.totalGlobalTimers * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
 	}
 
 	return tempMetrics, ms
@@ -187,7 +339,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateInterMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate an InterMetric corresponding to that value
-func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
+func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, aggregates samplers.HistogramAggregates, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.TraceClient)
@@ -195,18 +347,20 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
-			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
+			finalMetrics = append(finalMetrics, c.Flush(s.Interval)...)
 		}
 		for _, g := range wm.gauges {
 			finalMetrics = append(finalMetrics, g.Flush()...)
 		}
 		// if we're a local veneur, then percentiles=nil, and only the local
 		// parts (count, min, max) will be flushed
+		//
+		// if we're a global veneur, aggregates will be nil.
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, percentiles, s.HistogramAggregates, false)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, percentiles, s.HistogramAggregates, false)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -214,13 +368,13 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
 		}
 
 		for _, status := range wm.localStatusChecks {
@@ -240,17 +394,23 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			// global counters have no local parts, so if we're a local veneur,
 			// there's nothing to flush
 			for _, gc := range wm.globalCounters {
-				finalMetrics = append(finalMetrics, gc.Flush(s.interval)...)
+				finalMetrics = append(finalMetrics, gc.Flush(s.Interval)...)
 			}
 
 			// and global gauges
 			for _, gg := range wm.globalGauges {
 				finalMetrics = append(finalMetrics, gg.Flush()...)
 			}
+
+			for _, h := range wm.globalHistograms {
+				finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
+			}
+			for _, h := range wm.globalTimers {
+				finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
+			}
 		}
 	}
 
-	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "combine"}))
 	return finalMetrics
 }
 
@@ -285,113 +445,40 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalGauges), []string{"metric_type:global_gauge"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalHistograms), []string{"metric_type:global_histogram"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalTimers), []string{"metric_type:global_timers"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
 }
 
-func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.ClientFinish(s.TraceClient)
-	jmLength := 0
-	for _, wm := range wms {
-		jmLength += len(wm.globalCounters)
-		jmLength += len(wm.globalGauges)
-		jmLength += len(wm.histograms)
-		jmLength += len(wm.sets)
-		jmLength += len(wm.timers)
-	}
+func (s *Server) reportGlobalReceivedProtocolMetrics() {
+	protocolMetrics := s.listeningPerProtocolMetrics
 
-	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
-	exportStart := time.Now()
-	for _, wm := range wms {
-		for _, count := range wm.globalCounters {
-			jm, err := count.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "counter",
-					"name":          count.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, gauge := range wm.globalGauges {
-			jm, err := gauge.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "gauge",
-					"name":          gauge.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, histo := range wm.histograms {
-			jm, err := histo.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "histogram",
-					"name":          histo.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, set := range wm.sets {
-			jm, err := set.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "set",
-					"name":          set.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, timer := range wm.timers {
-			jm, err := timer.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "timer",
-					"name":          timer.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			// the exporter doesn't know that these two are "different"
-			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-	}
-	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
-	s.Statsd.Count("forward.post_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
-	if len(jsonMetrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
-		return
-	}
+	dogstatsdTcpTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdTcpReceivedTotal, 0)
+	dogstatsdUdpTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdUdpReceivedTotal, 0)
+	dogstatsdUnixTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdUnixReceivedTotal, 0)
+	dogstatsdGrpcTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdGrpcReceivedTotal, 0)
 
-	// the error has already been logged (if there was one), so we only care
-	// about the success case
-	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, nil, log) == nil {
-		log.WithFields(logrus.Fields{
-			"metrics":     len(jsonMetrics),
-			"endpoint":    endpoint,
-			"forwardAddr": s.ForwardAddr,
-		}).Info("Completed forward to upstream Veneur")
-	}
+	ssfUdpTotal := atomic.SwapInt64(&protocolMetrics.ssfUdpReceivedTotal, 0)
+	ssfUnixTotal := atomic.SwapInt64(&protocolMetrics.ssfUnixReceivedTotal, 0)
+	ssfGrpcTotal := atomic.SwapInt64(&protocolMetrics.ssfGrpcReceivedTotal, 0)
+
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdTcpTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_TCP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdUdpTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_UDP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdUnixTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_UNIX.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_GRPC.String()}, 1.0)
+
+	s.Statsd.Count(perProtocolTotalMetricName, ssfUdpTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_UDP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, ssfUnixTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_UNIX.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, ssfGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_GRPC.String()}, 1.0)
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
 	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
 		key, ok := keyI.(string)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":  keyI,
 				"type": reflect.TypeOf(keyI),
 			}).Error("received non-string key")
@@ -400,7 +487,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		value, ok := valueI.(*ssfServiceSpanMetrics)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"value": valueI,
 				"type":  reflect.TypeOf(valueI),
 			}).Error("received non-struct value")
@@ -409,24 +496,27 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		tags := strings.Split(key, ",")
 		if len(tags) != 2 {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":    key,
 				"length": len(tags),
 			}).Error("received key of incorrect format")
 		}
 
 		spansReceivedTotal := atomic.SwapInt64(&value.ssfSpansReceivedTotal, 0)
+		spansRootReceivedTotal := atomic.SwapInt64(&value.ssfRootSpansReceivedTotal, 0)
 		s.Statsd.Count("ssf.spans.received_total", spansReceivedTotal, tags, 1.0)
+		s.Statsd.Count("ssf.spans.root.received_total", spansRootReceivedTotal, append(tags, "veneurglobalonly:true"), 1.0)
 		return true
 	})
 
 	s.SpanWorker.Flush()
 }
 
-// forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
-func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
+// forward forwards all input metrics to a downstream Veneur, over gRPC.
+func (s *Server) forward(
+	ctx context.Context, wms []WorkerMetrics,
+) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.TraceClient)
 
 	exportStart := time.Now()
@@ -434,7 +524,7 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	// Collect all of the forwardable metrics from the various WorkerMetrics.
 	var metrics []*metricpb.Metric
 	for _, wm := range wms {
-		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient)...)
+		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient, s.logger)...)
 	}
 
 	span.Add(
@@ -442,27 +532,30 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 			time.Nanosecond, map[string]string{"part": "export"}),
 		ssf.Gauge("forward.metrics_total", float32(len(metrics)), nil),
 		// Maintain compatibility with metrics used in HTTP-based forwarding
-		ssf.Gauge("forward.post_metrics_total", float32(len(metrics)), nil),
+		ssf.Count("forward.post_metrics_total", float32(len(metrics)), nil),
 	)
 
 	if len(metrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
+		s.logger.Debug("Nothing to forward, skipping.")
 		return
 	}
 
-	entry := log.WithFields(logrus.Fields{
+	entry := s.logger.WithFields(logrus.Fields{
 		"metrics":     len(metrics),
 		"destination": s.ForwardAddr,
-		"protocol":    "grpc",
 		"grpcstate":   s.grpcForwardConn.GetState().String(),
 	})
 
 	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	grpcStart := time.Now()
-	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	err := forwardGrpc(ctx, c, metrics)
 	if err != nil {
-		if statErr, ok := status.FromError(err); ok && (statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
+		if ctx.Err() != nil {
+			// We exceeded the deadline of the flush context.
+			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "deadline_exceeded"}))
+		} else if statErr, ok := status.FromError(err); ok &&
+			(statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
 			// We could check statErr.Code() == codes.Unavailable, but we don't know all of the cases that
 			// could return that code. These two particular cases are fairly safe and usually associated
 			// with connection rebalancing or host replacement, so we don't want them going to sentry.
@@ -480,4 +573,19 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 			map[string]string{"part": "grpc"}),
 		ssf.Count("forward.error_total", 0, nil),
 	)
+}
+
+func forwardGrpc(
+	ctx context.Context, client forwardrpc.ForwardClient,
+	metrics []*metricpb.Metric,
+) error {
+	sendMetricsClient, err := client.SendMetricsV2(ctx)
+	if err != nil {
+		return err
+	}
+	for _, metric := range metrics {
+		sendMetricsClient.Send(metric)
+	}
+	_, err = sendMetricsClient.CloseAndRecv()
+	return err
 }

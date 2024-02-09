@@ -1,8 +1,8 @@
 package lightstep
 
 import (
+	"errors"
 	"fmt"
-	"net/url"
 	"reflect"
 	"strconv"
 	"sync"
@@ -13,11 +13,13 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	veneur "github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 )
 
 const indicatorSpanTagName = "indicator"
@@ -25,7 +27,15 @@ const indicatorSpanTagName = "indicator"
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
-var unexpectedCountTypeErr = fmt.Errorf("Received unexpected count type")
+var errUnexpectedCountType = fmt.Errorf("received unexpected count type")
+
+type LightStepSpanSinkConfig struct {
+	AccessToken     util.StringSecret `yaml:"lightstep_access_token"`
+	CollectorHost   util.Url          `yaml:"lightstep_collector_host"`
+	MaximumSpans    int               `yaml:"lightstep_maximum_spans"`
+	NumClients      int               `yaml:"lightstep_num_clients"`
+	ReconnectPeriod time.Duration     `yaml:"lightstep_reconnect_period"`
+}
 
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
@@ -33,49 +43,54 @@ type LightStepSpanSink struct {
 	mutex        *sync.Mutex
 	serviceCount sync.Map
 	traceClient  *trace.Client
-	log          *logrus.Logger
+	log          *logrus.Entry
+	name         string
 }
 
 var _ sinks.SpanSink = &LightStepSpanSink{}
 
-// NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, log *logrus.Logger) (*LightStepSpanSink, error) {
-	var host *url.URL
-	host, err := url.Parse(collector)
+func ParseSpanConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
+	lightstepConfig := LightStepSpanSinkConfig{}
+	err := util.DecodeConfig(name, config, &lightstepConfig)
 	if err != nil {
-		log.WithError(err).WithField(
-			"host", collector,
-		).Error("Error parsing LightStep collector URL")
-		return &LightStepSpanSink{}, err
+		return nil, err
 	}
 
+	if lightstepConfig.ReconnectPeriod == 0 {
+		lightstepConfig.ReconnectPeriod = lightstepDefaultInterval
+	}
+
+	return lightstepConfig, nil
+}
+
+// NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
+func CreateSpanSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	lightstepConfig, ok := sinkConfig.(LightStepSpanSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	host := lightstepConfig.CollectorHost.Value
 	port, err := strconv.Atoi(host.Port())
 	if err != nil {
-		log.WithError(err).WithFields(logrus.Fields{
+		logger.WithError(err).WithFields(logrus.Fields{
 			"port":         port,
 			"default_port": lightstepDefaultPort,
 		}).Warn("Error parsing LightStep port, using default")
 		port = lightstepDefaultPort
 	}
 
-	reconPeriod := lightstepDefaultInterval
-	if reconnectPeriod != "" {
-		reconPeriod, err = time.ParseDuration(reconnectPeriod)
-		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
-				"interval":         reconnectPeriod,
-				"default_interval": lightstepDefaultInterval,
-			}).Warn("Failed to parse reconnect duration, using default.")
-			reconPeriod = lightstepDefaultInterval
-		}
-	}
-
-	log.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"Host": host.Hostname(),
 		"Port": port,
 	}).Info("Dialing lightstep host")
 
-	lightstepMultiplexTracerNum := numClients
+	lightstepMultiplexTracerNum := lightstepConfig.NumClients
 	// If config value is missing, this value should default to one client
 	if lightstepMultiplexTracerNum <= 0 {
 		lightstepMultiplexTracerNum = 1
@@ -90,15 +105,16 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	for i := 0; i < lightstepMultiplexTracerNum; i++ {
 		tracers = append(tracers, lightstep.NewTracer(lightstep.Options{
-			AccessToken:     accessToken,
-			ReconnectPeriod: reconPeriod,
+			// Unsure whether this should be Token.Value or Token.String
+			AccessToken:     lightstepConfig.AccessToken.Value,
+			ReconnectPeriod: lightstepConfig.ReconnectPeriod,
 			Collector: lightstep.Endpoint{
 				Host:      host.Hostname(),
 				Port:      port,
 				Plaintext: plaintext,
 			},
 			UseGRPC:          true,
-			MaxBufferedSpans: maximumSpans,
+			MaxBufferedSpans: lightstepConfig.MaximumSpans,
 		}))
 	}
 
@@ -106,7 +122,8 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 		tracers:      tracers,
 		serviceCount: sync.Map{},
 		mutex:        &sync.Mutex{},
-		log:          log,
+		log:          logger,
+		name:         name,
 	}, nil
 }
 
@@ -118,6 +135,11 @@ func (ls *LightStepSpanSink) Start(cl *trace.Client) error {
 
 // Name returns this sink's name.
 func (ls *LightStepSpanSink) Name() string {
+	return ls.name
+}
+
+// Kind returns this sink's kind.
+func (ls *LightStepSpanSink) Kind() string {
 	return "lightstep"
 }
 
@@ -193,8 +215,8 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	c, ok := count.(*int64)
 	if !ok {
-		ls.log.WithField("type", reflect.TypeOf(count)).Debug(unexpectedCountTypeErr.Error())
-		return unexpectedCountTypeErr
+		ls.log.WithField("type", reflect.TypeOf(count)).Debug(errUnexpectedCountType.Error())
+		return errUnexpectedCountType
 	}
 	atomic.AddInt64(c, 1)
 	return nil

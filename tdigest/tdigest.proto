@@ -1,7 +1,7 @@
 syntax = "proto3";
 package tdigest;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/gogo/protobuf@v1.2.1/gogoproto/gogo.proto";
 
 // MergingDigestData contains all fields necessary to generate a MergingDigest.
 // This type should generally just be used when serializing MergingDigest's,
@@ -14,6 +14,7 @@ message MergingDigestData {
     double compression = 2;
     double min = 3;
     double max = 4;
+    double reciprocalSum = 5;
 }
 
 message Centroid {

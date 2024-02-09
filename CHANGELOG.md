@@ -1,11 +1,161 @@
-# 9.0.0, in progress
-
-## Bugfixes
-* The splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
-* The splunk span sink now honors `Connection: keep-alive` from the HEC endpoint and keeps around as many idle HTTP connections in reserve as it has HEC submission workers. Thanks, [antifuchs](https://github.com/antifuchs)!
+# 14.2.0, UNRELEASED
 
 ## Added
-* The splunk span sink can be configured with a sample rate for non-indicator spans with the `splunk_span_sample_rate` setting. Thanks, [aditya](https://github.com/chimeracoder)!
+* A flag -print-secrets to disable redacting config secrets.
+* A prometheus remote-write sink compatible with Cortex and more. Thanks, [philipnrmn](https://github.com/philipnrmn)!
+* Some veneur-prometheus arguments to rename and add additional tags. Thanks, [christopherb-stripe](https://github.com/christopherb-stripe)!
+* Migrate Prometheus to new config format; part of multi-sink routing update. Thanks, [truong-stripe](https://github.com/truong-stripe)!
+* Authentication support for Cortex remote-write sink. Thanks, [oscil8](https://github.com/oscil8)!
+* Option to flush sinks on shutdown. Thanks, [csolidum](https://github.com/csolidum)!
+* `trace.StartTrace` and `trace.StartChildSpan` now scale better across multiple goroutines.  Thanks [bpowers](https://github.com/bpowers)
+* Support for mTLS in `veneur-proxy`. Thanks [arnavdugar](https://github.com/arnavdugar)
+* Support for [extended clientside aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#client-side-aggregation). Thanks, [praboud-stripe](https://github.com/praboud-stripe)!
+
+## Updated
+* Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
+* When the request to send data from Cloudwatch & SFX sink fails, log the count of metrics that are dropped. 
+
+## Bugfixes
+* A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
+* Regenerate testing certs/CA that have expired and have broken tests. Thanks, [randallm](https://github.com/randallm)
+* The config field `trace_lightstep_access_token` is redacted if printed. Thanks [arnavdugar](https://github.com/arnavdugar)!
+
+# 14.1.0, 2021-03-16
+
+## Added
+
+* The ability to emit dogstatsd metrics from veneur-emit over plain TCP in addition to the current plain UDP. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+* A config option and health checking for beginning support of emitting/receiving metrics via gRPC. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!  
+* A gRPC server that listens for SSF spans and dogstatsd metrics on grpc_listening_addresses. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
+* The ability to emit metrics from veneur-emit via the gRPC protocol as well as the option to specify a proxy for those metrics. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
+* The "veneur.listen.received_per_protocol_total" metric to be published by global Veneur instances. This is a counter to track the metrics being directly listened for (rather than imported) by protocol. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!
+* Log the SignalFX endpoint base on creation of the sink. Useful for grepping across multiple host logs. Thanks [rma-stripe](https://github.com/rma-stripe)!
+
+## Updated
+
+* Upgrade to Goji 2.0.2 and use the modern Goji mux API. Thanks [hans-stripe](https://github.com/hans-stripe)!
+* Increase the timeout of TestCountActiveHandlers from 3 seconds to 10 seconds. Helps some tests pass in certain environments. Thanks [sushain97](https://github.com/sushain97)!
+
+# 14.0.0, 2020-01-14
+
+## Updated
+* Migrated from dep to Go modules. Clients must now use the updated import path `github.com/stripe/veneur/v14`. Thanks, [andybons](https://github.com/andybons)!
+
+# 13.0.0, 2020-01-05
+
+## Added
+
+* The SignalFx sink now supports dynamically fetching per-tag Access tokens from SignalFX. Thanks, [szabado](https://github.com/szabado)!
+* The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
+* A flush "watchdog" controlled by the config setting `flush_watchdog_missed_flushes`. If veneur has not started this many flushes, the watchdog panics and terminates veneur (so it can be restarted by process supervision). Thanks, [antifuchs](https://github.com/antifuchs)!
+* Splunk sink: Trace-related IDs are now represented in hexadecimal for cross-tool compatibility and a small byte savings. Thanks, [myndzi](https://github.com/myndzi)
+* Splunk sink: Indicator spans are now tagged with `"partial":true` when they would otherwise have been sampled, distinguishing between partial and full traces. Thanks, [myndzi](https://github.com/myndzi)
+* New configuration options `veneur_metrics_scopes` and `veneur_metrics_additional_tags`, which allow configuring veneur such that it aggregates its own metrics globally (rather than reporting a set of internal metrics per instance/container/etc). Thanks, [antifuchs](https://github.com/antifuchs)!
+* New SSF `sample` field: `scope`. This field lets clients tell Veneur what to do with the sample - it corresponds exactly to the `veneurglobalonly` and `veneurlocalonly` tags that metrics can hold. Thanks, [antifuchs](https://github.com/antifuchs)!
+* veneur-prometheus now allows you to specify mTLS configuration for the polling HTTP client. Thanks, [choo-stripe](https://github.com/choo-stripe)!
+* The `http_quit` config option enables the `/quitquitquit` endpoint, which can be used to trigger a graceful shutdown using an HTTP POST request. Thanks, [aditya](https://github.com/chimeracoder)!
+* New config option `count_unique_timeseries` which is used to emit metric `veneur.flush.unique_timeseries_total`, the HyperLogLog cardinality estimate of the unique timeseries in a flush interval. Thanks, [randallm](https://github.com/randallm)!
+* veneur-emit now allows you to mark SSF spans as having errored. Thanks, [randallm](https://github.com/randallm)!
+* The Splunk span sink supports tag exclusion, to better manage Splunk indexing volume. If a span contains a tag that's in the excluded set, the Splunk sink will skip sending that span to Splunk. Thanks, [aditya](https://github.com/chimeracoder)!
+* veneur-prometheus now supports Prometheus Untyped metrics. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+* veneur-prometheus now accepts a socket parameter for proxied requests. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+* The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
+* The Datadog sink can now filter tags by metric names prefix with `datadog_exclude_tags_prefix_by_prefix_metric`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
+* When specifying the SignalFx key with `signalfx_vary_key_by`, if both the host and the metric provide a value, the metric-provided value will take precedence over the host-provided value. This allows more granular forms of metric organization and attribution. Thanks, [aditya](https://github.com/chimeracoder)!
+* Support for listening to abstract statsd metrics on Unix Domain Socket(Datagram type). Thanks, [androohan](https://github.com/androohan)!
+* Implementation of a Prometheus sink through Statsd Exporter. Thanks, [yanske](https://github.com/yanske)!
+* New Relic sink supporting Metrics, Events, Service Checks (as events) and Trace Spans. Thanks, [jthurman42](https://github.com/jthurman42)!
+
+## Updated
+
+* Updated the vendored version of DataDog/datadog-go which adds support for sending metrics to Unix Domain socket. Thanks, [prudhvi](https://github.com/prudhvi)!
+* Splunk sink: Downgraded Splunk HEC errors to be logged at warning level, rather than error level. Added a note to clarify that Splunk cluster restarts can cause temporary errors, which are not necessarily problematic. Thanks, [aditya](https://github.com/chimeracoder)!
+* Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
+* Updated server.go to use the aws sdk (https://docs.aws.amazon.com/sdk-for-go/api/aws/session/) when the creds are not set in the config.yaml. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
+* Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with Go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Thanks, [antifuchs](https://github.com/antifuchs)!
+* Disabled the dogstatsd client telemetry on the internal statsd client used by Veneur. Thanks, [prudhvi](https://github.com/prudhvi)!
+* Migrated from the deprecated Sentry package, raven-go, to sentry-go. Thanks, [yanske](https://github.com/yanske)!
+
+## Bugfixes
+* veneur-prometheus now reports incremental counters instead of cumulative counters. This may cause dramatic differences in the statistics reported by veneur-prometheus.  Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+* Fixed a bug that caused some veneur-emit builds to not flush metrics to udp. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+
+## Bugfixes
+* Veneur listening on UDS for statsd metrics will respect the `read_buffer_size_bytes` config. Thanks, [prudhvi](https://github.com/prudhvi)!
+* The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The signalfx sink no longer deadlocks the flush process if it receives more than one error per submission. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Fixed the README to link to the correct HLL implementation. Thanks, [gphat](https://github.com/gphat)!
+* Fixed the BucketRegionError while using the S3 Plugin. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
+
+## Removed
+
+* A dependency on `github.com/Sirupsen/logrus` from the trace client package `github.com/stripe/veneur/trace`. Thanks, [antifuchs](https://github.com/antifuchs) and [samczsun](https://github.com/samczsun)!
+
+# 12.0.0, 2019-03-06
+
+## Added
+
+* The OpenTracing implementation's `Tracer.Inject` in the `trace` package now sets HTTP headers in a way that tools like [Envoy](https://www.envoyproxy.io/) can propagate on traces. Thanks, [antifuchs](https://github.com/antifuchs)!
+* SSF packets are now validated to ensure they contain either a valid span or at least one metric. The metric `veneur.worker.ssf.empty_total` tracks the number of empty SSF packets encountered, which indicates a client error. Thanks, [tummychow](https://github.com/tummychow) and [aditya](https://github.com/chimeracoder)!
+* SSF indicator spans can now report an additional "objective" metric, tagged with their service and name. Thanks, [tummychow](https://github.com/tummychow)!
+* Support for listening to statsd metrics on Unix Domain Socket(Datagram type). Thanks, [prudhvi](https://github.com/prudhvi)!
+
+## Updated
+* The metric `veneur.sink.spans_dropped_total` now includes packets that were skipped due to UDP write errors. Thanks, [aditya](https://github.com/chimeracoder)!
+* The `debug` blackhole sink features improved logging output, with more data and better formatting. Thanks, [aditya](https://github.com/chimeracoder)!
+* Container images are now built with Go 1.12. Thanks, [aditya](https://github.com/chimeracoder)!
+
+## Bugfixes
+* The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
+* SSF packets without a name are no longer considered valid for `protocol.ValidTrace`. Thanks, [tummychow](https://github.com/tummychow)!
+* The splunk sink no longer hangs or complains when a HEC endpoint should close the connection. Thanks, [antifuchs](https://github.com/antifuchs)!
+
+## Removed
+* Go 1.10 is no longer supported.
+
+# 11.0.0, 2019-01-22
+
+## Added
+* Datadog's [distribution](https://docs.datadoghq.com/developers/metrics/distributions/) type for DogStatsD is now supported and treated as a plain histogram for compatibility. Thanks, [gphat](https://github.com/gphat)!
+* Add support for `tags_exclude` to the DataDog metrics sink. Thanks, [mhamrah](https://github.com/mhamrah)!
+* The `github.com/stripe/veneur/trace` package has brand new and much more extensive [documentation](https://godoc.org/github.com/stripe/veneur/trace)! Thanks, [antifuchs](https://github.com/antifuchs)!
+* New configuration setting `signalfx_flush_max_per_body` that allows limiting the payload of HTTP POST bodies containing data points destined for SignalFx. Thanks, [antifuchs](https://github.com/antifuchs)!
+
+# 10.0.0, 2018-12-19
+
+## Added
+* The new X-Ray sink provides support for [AWS X-Ray](https://aws.amazon.com/xray/) as a tracing backend. Thanks, [gphat](https://github.com/gphat) and [aditya](https://github.com/chimeracoder)!
+* A new package `github.com/stripe/veneur/trace/testbackend` contains two trace client backends that can be used to test the trace data emitted by applications. Thanks, [antifuchs](https://github.com/antifuchs)!
+
+## Updated
+* Updated the vendored version of x/net, which picks up a package rename that can lead issues when integrating veneur into other codebases. Thanks, [nicktrav](https://github.com/nicktrav)!
+* Updated the vendored versions of x/sys, protobuf, and gRPC. Thanks [nicktrav](https://github.com/nicktrav)!
+
+# 9.0.0, 2018-11-08
+
+## Bugfixes
+* The Splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The Splunk span sink now honors `Connection: keep-alive` from the HEC endpoint and keeps around as many idle HTTP connections in reserve as it has HEC submission workers. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The metric `veneur.forward.post_metrics_total` was being emitted both as a gauge and a counter. The errant gauge was removed. Thanks, [gphat](https://github.com/gphat)!
+
+## Added
+* The Splunk span sink can be configured with a sample rate for non-indicator spans with the `splunk_span_sample_rate` setting. Thanks, [aditya](https://github.com/chimeracoder)!
+* The splunk span sink now has configuration parameters `splunk_hec_max_connection_lifetime` and `splunk_hec_connection_lifetime_jitter` to regulate how long HTTP connections can be kept alive for. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The SignalFx sink can now filter metric names by prefix with `signalfx_metric_name_prefix_drops` and tag literals (case-insensitive) with `signalfx_metric_tag_literal_drops`. Thanks [gphat](https://github.com/gphat)!
+* Histograms and timers now support global scope. Histograms and timers tagged with "veneurglobalonly" will now emit *all* metrics from the global veneur. The default behavior is to emit aggregates like max, min locally and percentiles globally. Thanks, [clin](https://github.com/clin88)!
+* The `ssf.spans.root.received_total` global counter tracks the number of traces (root spans) processed system-wide. Thanks, [aditya](https://github.com/chimeracoder)!
+
+## Updated
+* The README's [Metrics section](https://github.com/stripe/veneur#metrics) has been updated, as it referred to some missing metrics. Thanks, [gphat](https://github.com/gphat)!
+* Various references to Datadog were removed from the README, Veneur is vendor agnostic. Thanks, [gphat](https://github.com/gphat)!
+
+## Removed
+* The metrics `veneur.flush.total_duration_ns` and `veneur.flush.worker_duration_ns` were removed, please use the per-sink `veneur.sink.metric_flush_total_duration_ns` to monitor flush durations.
+* The metrics `veneur.gc.GCCPUFraction`, `veneur.gc.alloc_heap_bytes_total`, `veneur.gc.mallocs_objects_total` metrics were removed. Also from veneur proxy. Thanks, [gphat](https://github.com/gphat)!
+* The metric `veneur.flush.other_samples_duration_ns` was removed. Thanks, [gphat](https://github.com/gphat)!
 
 # 8.0.0, 2018-09-20
 
@@ -22,7 +172,7 @@
 * The trace client can now correctly parse trace headers emitted by Envoy. Thanks, [aditya](https://github.com/chimeracoder)!
 
 
-## Removals
+## Removed
 * Go 1.9 is no longer supported.
 
 # 7.0.0, 2018-08-08
@@ -43,7 +193,7 @@
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
 
 
-## Removals
+## Removed
 * `veneur-proxy` now only logs forward counts at Debug level, drastically reducing log volume.
 
 # 6.0.0, 2018-06-28
@@ -212,7 +362,7 @@
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
 * Remove spurious warnings about unset configuration settings. Thanks [antifuchs](https://github.com/antifuchs)
 
-## Removals
+## Removed
 * Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
 
 # 1.7.0, 2017-10-19

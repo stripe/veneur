@@ -1,15 +1,34 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
 	"os"
-	"time"
 
-	"github.com/getsentry/raven-go"
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/diagnostics"
+	"github.com/stripe/veneur/v14/sinks/cortex"
+	"github.com/stripe/veneur/v14/sinks/datadog"
+	"github.com/stripe/veneur/v14/sinks/debug"
+	"github.com/stripe/veneur/v14/sinks/falconer"
+	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
+	"github.com/stripe/veneur/v14/sinks/localfile"
+	"github.com/stripe/veneur/v14/sinks/newrelic"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
+	"github.com/stripe/veneur/v14/sinks/s3"
+	"github.com/stripe/veneur/v14/sinks/signalfx"
+	"github.com/stripe/veneur/v14/sinks/splunk"
+	"github.com/stripe/veneur/v14/sinks/xray"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/build"
+	utilConfig "github.com/stripe/veneur/v14/util/config"
 )
 
 var (
@@ -24,62 +43,161 @@ func init() {
 
 func main() {
 	flag.Parse()
+	logger := logrus.StandardLogger()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if configFile == nil || *configFile == "" {
-		logrus.Fatal("You must specify a config file")
+		logrus.Fatal("missing required config file")
 	}
 
-	conf, err := veneur.ReadConfig(*configFile)
+	config, err :=
+		utilConfig.ReadConfig[veneur.Config](
+			*configFile, nil, *validateConfigStrict, "veneur")
 	if err != nil {
-		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
-			if *validateConfigStrict {
-				logrus.WithError(err).Fatal("Config contains invalid or deprecated keys")
-			} else {
-				logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
-			}
-		} else {
-			logrus.WithError(err).Fatal("Error reading config file")
+		logger.WithError(err).Fatal("failed to load config file")
+	}
+	config.ApplyDefaults()
+
+	if config.SentryDsn.Value != "" {
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn:        config.SentryDsn.Value,
+			ServerName: config.Hostname,
+			Release:    build.VERSION,
+		})
+		if err != nil {
+			logger.WithError(err).Fatal("failed to initialzie Sentry")
 		}
+		logger.AddHook(veneur.SentryHook{
+			Level: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
 	}
 
 	if *validateConfig {
 		os.Exit(0)
 	}
 
-	logger := logrus.StandardLogger()
-	server, err := veneur.NewFromConfig(logger, conf)
-	veneur.SetLogger(logger)
+	stats, err := statsd.New(
+		config.StatsAddress,
+		statsd.WithAggregationInterval(config.Interval),
+		statsd.WithChannelMode(),
+		statsd.WithChannelModeBufferSize(4096),
+		statsd.WithClientSideAggregation(),
+		statsd.WithMaxMessagesPerPayload(4096),
+		statsd.WithNamespace("veneur."),
+		statsd.WithoutTelemetry(),
+	)
 	if err != nil {
-		e := err
-
-		logrus.WithError(e).Error("Error initializing server")
-		var sentry *raven.Client
-		if conf.SentryDsn != "" {
-			sentry, err = raven.New(conf.SentryDsn)
-			if err != nil {
-				logrus.WithError(err).Error("Error initializing Sentry client")
-			}
-		}
-
-		hostname, _ := os.Hostname()
-
-		p := raven.NewPacket(e.Error())
-		if hostname != "" {
-			p.ServerName = hostname
-		}
-
-		_, ch := sentry.Capture(p, nil)
-		select {
-		case <-ch:
-		case <-time.After(10 * time.Second):
-		}
-
-		logrus.WithError(e).Fatal("Could not initialize server")
+		logger.WithError(err).Fatal("failed to create statsd client")
 	}
+
+	server, err := veneur.NewFromConfig(veneur.ServerConfig{
+		Config: *config,
+		Logger: logger,
+		SourceTypes: veneur.SourceTypes{
+			"openmetrics": {
+				Create:      openmetrics.Create,
+				ParseConfig: openmetrics.ParseConfig,
+			},
+		},
+		MetricSinkTypes: veneur.MetricSinkTypes{
+			"cortex": {
+				Create:      cortex.Create,
+				ParseConfig: cortex.ParseConfig,
+			},
+			"datadog": {
+				Create:      datadog.CreateMetricSink,
+				ParseConfig: datadog.ParseMetricConfig,
+			},
+			"debug": {
+				Create:      debug.CreateMetricSink,
+				ParseConfig: debug.ParseMetricConfig,
+			},
+			"kafka": {
+				Create:      kafka.CreateMetricSink,
+				ParseConfig: kafka.ParseMetricConfig,
+			},
+			"localfile": {
+				Create:      localfile.Create,
+				ParseConfig: localfile.ParseConfig,
+			},
+			"newrelic": {
+				Create:      newrelic.CreateMetricSink,
+				ParseConfig: newrelic.ParseMetricConfig,
+			},
+			"prometheus": {
+				Create:      prometheus.CreateMetricSink,
+				ParseConfig: prometheus.ParseMetricConfig,
+			},
+			"s3": {
+				Create:      s3.Create,
+				ParseConfig: s3.ParseConfig,
+			},
+			"signalfx": {
+				Create:      signalfx.Create,
+				ParseConfig: signalfx.ParseConfig,
+			},
+		},
+		SpanSinkTypes: veneur.SpanSinkTypes{
+			"datadog": {
+				Create:      datadog.CreateSpanSink,
+				ParseConfig: datadog.ParseSpanConfig,
+			},
+			"debug": {
+				Create:      debug.CreateSpanSink,
+				ParseConfig: debug.ParseSpanConfig,
+			},
+			"falconer": {
+				Create:      falconer.Create,
+				ParseConfig: falconer.ParseConfig,
+			},
+			"kafka": {
+				Create:      kafka.CreateSpanSink,
+				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"lightstep": {
+				Create:      lightstep.CreateSpanSink,
+				ParseConfig: lightstep.ParseSpanConfig,
+			},
+			"newrelic": {
+				Create:      newrelic.CreateSpanSink,
+				ParseConfig: newrelic.ParseSpanConfig,
+			},
+			"splunk": {
+				Create:      splunk.Create,
+				ParseConfig: splunk.ParseConfig,
+			},
+			"xray": {
+				Create:      xray.Create,
+				ParseConfig: xray.ParseConfig,
+			},
+		},
+		HttpCustomHandlers: veneur.HttpCustomHandlers{
+			"/echo": func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("hello world!\n"))
+			},
+		},
+		Statsd: stats,
+	})
+	if err != nil {
+		logger.WithError(err).Fatal("Could not initialize server")
+	}
+
+	if config.Features.DiagnosticsMetricsEnabled {
+		go diagnostics.CollectDiagnosticsMetrics(
+			ctx, server.Statsd, server.Interval,
+			[]string{"git_sha:" + build.VERSION})
+	}
+
 	ssf.NamePrefix = "veneur."
 
 	defer func() {
-		veneur.ConsumePanic(server.Sentry, server.TraceClient, server.Hostname, recover())
+		veneur.ConsumePanic(server.TraceClient, server.Hostname, recover())
 	}()
 
 	if server.TraceClient != nil {
@@ -88,11 +206,10 @@ func main() {
 		}
 		trace.DefaultClient = server.TraceClient
 	}
+	go server.FlushWatchdog()
 	server.Start()
 
-	if conf.HTTPAddress != "" || conf.GrpcAddress != "" {
+	if config.HTTPAddress != "" || config.GrpcAddress != "" {
 		server.Serve()
-	} else {
-		select {}
 	}
 }

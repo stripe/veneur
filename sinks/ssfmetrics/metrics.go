@@ -5,22 +5,24 @@ import (
 	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
 // metricExtractionSink enqueues ssf spans or udp metrics for processing in the next pipeline iteration.
 type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
+	objectiveSpanTimerName string
 	log                    *logrus.Logger
 	traceClient            *trace.Client
 	spansProcessed         int64
 	metricsGenerated       int64
+	parser                 samplers.Parser
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -40,17 +42,24 @@ type DerivedMetricsSink interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
+func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger, p *samplers.Parser) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
-		indicatorSpanTimerName: timerName,
+		indicatorSpanTimerName: indicatorTimerName,
+		objectiveSpanTimerName: objectiveTimerName,
 		traceClient:            cl,
 		log:                    log,
+		parser:                 *p,
 	}, nil
 }
 
 // Name returns "metric_extraction".
 func (m *metricExtractionSink) Name() string {
+	return "metric_extraction"
+}
+
+// Kind returns "metric_extraction".
+func (m *metricExtractionSink) Kind() string {
 	return "metric_extraction"
 }
 
@@ -67,7 +76,7 @@ func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 }
 
 func (m *metricExtractionSink) SendSample(sample *ssf.SSFSample) error {
-	metric, err := samplers.ParseMetricSSF(sample)
+	metric, err := m.parser.ParseMetricSSF(sample)
 	if err != nil {
 		return err
 	}
@@ -83,7 +92,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		atomic.AddInt64(&m.metricsGenerated, int64(metricsCount))
 		atomic.AddInt64(&m.spansProcessed, 1)
 	}()
-	metrics, err := samplers.ConvertMetrics(span)
+	metrics, err := m.parser.ConvertMetrics(span)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			m.log.WithError(err).
@@ -113,7 +122,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	// If we made it here, we are dealing with a fully-fledged
 	// trace span, not just a mere carrier for Samples:
 
-	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
+	indicatorMetrics, err := m.parser.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName, m.objectiveSpanTimerName)
 	if err != nil {
 		m.log.WithError(err).
 			WithField("span_name", span.Name).
@@ -122,7 +131,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	}
 	metricsCount += len(indicatorMetrics)
 
-	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.01)
+	spanMetrics, err := m.parser.ConvertSpanUniquenessMetrics(span, 0.01)
 	if err != nil {
 		m.log.WithError(err).
 			WithField("span_name", span.Name).

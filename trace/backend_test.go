@@ -6,14 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func benchmarkPlainCombination(backend ClientBackend, span *ssf.SSFSpan) func(*testing.B) {
@@ -42,6 +41,24 @@ func benchmarkFlushingCombination(backend FlushableClientBackend, span *ssf.SSFS
 	}
 }
 
+func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn)) (cleanup func() error) {
+	srv, err := net.ListenUnix(laddr.Network(), laddr)
+	require.NoError(t, err)
+	cleanup = srv.Close
+
+	go func() {
+		for {
+			in, err := srv.Accept()
+			if err != nil {
+				return
+			}
+			go onconnect(in)
+		}
+	}()
+
+	return
+}
+
 // BenchmarkSerialization tests how long the serialization of a span
 // over each kind of network link can take: UNIX with no buffer, UNIX
 // with a buffer, UDP (only unbuffered); combined with the kinds of
@@ -51,9 +68,7 @@ func benchmarkFlushingCombination(backend FlushableClientBackend, span *ssf.SSFS
 // The counterpart is either a fresh UDP port with nothing reading
 // packets, or a network reader that discards every byte read.
 func BenchmarkSerialization(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(b, err)
-	defer os.RemoveAll(dir)
+	dir := b.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)

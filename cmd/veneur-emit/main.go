@@ -7,11 +7,14 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"fmt"
 	"strconv"
@@ -21,9 +24,11 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/araddon/dateparse"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"google.golang.org/grpc"
 )
 
 type EmitMode uint
@@ -33,6 +38,7 @@ type Flags struct {
 	Mode      string
 	Debug     bool
 	Command   bool
+	Proxy     string
 	ExtraArgs []string
 
 	Name   string
@@ -42,6 +48,7 @@ type Flags struct {
 	Set    string
 	Tag    string
 	ToSSF  bool
+	ToGrpc bool
 
 	Event struct {
 		Title      string
@@ -71,6 +78,7 @@ type Flags struct {
 		EndTime   string
 		Service   string
 		Indicator bool
+		Error     bool
 		Tags      string
 	}
 }
@@ -159,7 +167,15 @@ type MinimalConn interface {
 }
 
 func main() {
-	flagStruct, passedFlags := flags(os.Args)
+	os.Exit(Main(os.Args))
+}
+
+func Main(args []string) int {
+	flagStruct, passedFlags, err := flags(args)
+	if err != nil {
+		logrus.WithError(err).Error("Could not parse flags.")
+		return 1
+	}
 
 	if flagStruct.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -167,45 +183,97 @@ func main() {
 
 	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-	addr, netAddr, err := destination(&flagStruct.HostPort, flagStruct.ToSSF)
+	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.ToGrpc)
+	proxy, proxyAddr, proxyErr := destination(flagStruct.Proxy, false)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error getting destination address.")
+		logrus.WithError(err).Error("Error encountered while resolving destination address.")
+		return 1
 	}
-	logrus.WithField("net", netAddr.Network()).
-		WithField("addr", netAddr.String()).
-		WithField("ssf", flagStruct.ToSSF).
+
+	if flagStruct.Proxy != "" && proxyErr != nil {
+		logrus.WithError(err).Error("Error encountered while resolving proxy destination address.")
+		return 1
+	}
+
+	logrus.WithField("addr", addr).
+		WithField("net", netAddr.Network()).
+		WithField("destination", flagStruct.HostPort).
+		WithField("grpc", flagStruct.ToGrpc).
 		Debugf("destination")
 
-	if flagStruct.Mode == "event" {
-		if flagStruct.ToSSF {
-			logrus.WithField("mode", flagStruct.Mode).
-				Fatal("Unsupported mode with SSF")
-		}
-		logrus.Debug("Sending event")
-		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
-		pkt, err := buildEventPacket(passedFlags)
-		if err != nil {
-			logrus.WithError(err).Fatal("build event")
-		}
-		nconn.Write(pkt.Bytes())
-		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+	if flagStruct.Proxy != "" {
+		logrus.WithField("addr", proxy).
+			WithField("net", proxyAddr.Network()).
+			WithField("proxy", flagStruct.Proxy).
+			Debugf("proxy")
 	}
 
-	if flagStruct.Mode == "sc" {
+	// We do "special" emitting for events and service checks.
+	// If we are doing gRPC then we just use the datadogGrpcWriter to send them as normal bytes
+	// If not, we send them as basic bytes over the network connection without making an intermediary ssf span
+	if flagStruct.Mode == "event" || flagStruct.Mode == "sc" {
 		if flagStruct.ToSSF {
 			logrus.WithField("mode", flagStruct.Mode).
-				Fatal("Unsupported mode with SSF")
+				Error("Unsupported mode with SSF")
+			return 1
 		}
-		logrus.Debug("Sending service check")
-		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
-		pkt, err := buildSCPacket(passedFlags)
+
+		//We are going to be using the "mode" field a lot in order to differentiate between service checks and events
+		logrus.WithField("mode", flagStruct.Mode).
+			Debug("Building packet")
+
+		var pkt bytes.Buffer
+		var err error
+		if flagStruct.Mode == "event" {
+			pkt, err = buildEventPacket(passedFlags)
+		} else {
+			pkt, err = buildSCPacket(passedFlags)
+		}
 		if err != nil {
-			logrus.WithError(err).Fatal("build event")
+			logrus.WithField("mode", flagStruct.Mode).
+				WithError(err).
+				Error("Error encountered while building packet")
+			return 1
 		}
-		nconn.Write(pkt.Bytes())
-		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+		logrus.Debugf("Packet Buffer string: %s", pkt.String())
+
+		if flagStruct.ToGrpc {
+			logrus.WithField("mode", flagStruct.Mode).
+				Debug("Sending packet via gRPC")
+
+			writer, err := newDatadogGrpcWriter(netAddr, flagStruct.HostPort, proxyAddr)
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Error encountered while initializing grpcWriter")
+				return 1
+			}
+			defer writer.Close()
+			_, err = writer.Write(pkt.Bytes())
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Error encountered while writing to grpcWriter")
+				return 1
+			}
+		} else {
+			logrus.WithField("mode", flagStruct.Mode).
+				Debug("Sending packet")
+
+			nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
+			defer nconn.Close()
+			_, err = nconn.Write(pkt.Bytes())
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Error encountered while sending packet")
+				return 1
+			}
+		}
+
+		logrus.WithField("mode", flagStruct.Mode).
+			Debug("Packet sent")
+		return 0
 	}
 
 	if flagStruct.Span.TraceID, err = inferTraceIDInt(flagStruct.Span.TraceID, envTraceID); err != nil {
@@ -220,15 +288,17 @@ func main() {
 			WithField("ID", "parent_span_id").
 			Warn("Could not infer ID from environment")
 	}
-	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator)
+	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator, flagStruct.Span.Error)
 	if err != nil {
 		logrus.WithError(err).
-			Fatal("Couldn't set up the main span")
+			Error("Couldn't set up the main span")
+		return 1
 	}
 	if span.TraceId != 0 {
 		if !flagStruct.ToSSF {
 			logrus.WithField("ssf", flagStruct.ToSSF).
-				Fatal("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+				Error("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+			return 1
 		}
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
@@ -240,52 +310,96 @@ func main() {
 
 	status, err := createMetric(span, passedFlags, flagStruct.Name, flagStruct.Tag, flagStruct.Command, flagStruct.ExtraArgs)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error creating metrics.")
+		logrus.WithError(err).Error("Error encountered while creating metrics.")
+		return 1
 	}
 	if flagStruct.ToSSF {
-		client, err := trace.NewClient(addr)
-		if err != nil {
-			logrus.WithError(err).
-				WithField("address", addr).
-				Fatal("Could not construct client")
+		dialAddr := netAddr.String()
+		if flagStruct.ToGrpc { // SSF via gRPC
+			grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
+			if proxyAddr != nil {
+				grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
+					return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
+				}))
+				// If we are proxying then we want to pass the unresolved hostport to avoid SSL errors
+				dialAddr = flagStruct.HostPort
+			}
+			logrus.WithField("proxying", proxyAddr != nil).
+				Debugf("Sending SSF metrics via gRPC")
+			conn, err := grpc.Dial(dialAddr, grpcDialOptions...)
+			if err != nil {
+				logrus.WithError(err).Error("Error encountered while dialing grpc ssf server")
+				return 1
+			}
+			defer conn.Close()
+			client := ssf.NewSSFGRPCClient(conn)
+			_, err = client.SendSpan(context.Background(), span)
+			if err != nil {
+				logrus.WithError(err).Error("Error encountered while sending ssf span over grpc")
+				return 1
+			}
+		} else { // SSF via UDP
+			u, err := url.Parse(addr)
+			if err != nil {
+				logrus.WithError(err).
+					WithField("address", addr).
+					Error("error parsing address")
+				return 1
+			}
+			client, err := trace.NewClient(u)
+			if err != nil {
+				logrus.WithError(err).
+					WithField("address", addr).
+					Error("Error encountered while constructing client")
+				return 1
+			}
+			defer client.Close()
+			err = sendSSF(client, span)
+			if err != nil {
+				logrus.WithError(err).Error("Error encountered while sending SSF span")
+				return 1
+			}
 		}
-		defer client.Close()
-		err = sendSSF(client, span)
-		if err != nil {
-			logrus.WithError(err).Fatal("Could not send SSF span")
-		}
-	} else {
-		if netAddr.Network() != "udp" {
+	} else { // This is the dogstatsd code block
+		if netAddr.Network() != "udp" && netAddr.Network() != "tcp" {
 			logrus.WithField("address", addr).
 				WithField("network", netAddr.Network()).
-				Fatal("hostport must be a UDP address for statsd metrics")
+				Error("hostport must be a UDP or TCP address for statsd metrics")
+			return 1
 		}
 		if len(span.Metrics) == 0 {
-			logrus.Fatal("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
+			logrus.Error("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
+			return 1
 		}
-		sendStatsd(netAddr.String(), span)
+		err = sendStatsd(netAddr, flagStruct.HostPort, span, flagStruct.ToGrpc, proxyAddr)
+		if err != nil {
+			logrus.WithError(err).Error("Error encountered while sending metrics")
+			return 1
+		}
 	}
-	os.Exit(status)
+	return status
 }
 
-func flags(args []string) (Flags, map[string]flag.Value) {
+func flags(args []string) (Flags, map[string]flag.Value, error) {
 	var flagStruct Flags
-	flagset := flag.NewFlagSet(args[0], flag.ExitOnError)
+	flagset := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
 	// Generic flags
 	flagset.StringVar(&flagStruct.HostPort, "hostport", "", "Address of destination (hostport or listening address URL).")
 	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
 	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	flagset.StringVar(&flagStruct.Proxy, "proxy", "", "Uses the argument (in hostport format) to proxy your emit. (Sets the authority header if using HTTP. This is the equivalent of Host for HTTP/2)")
 
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
 	flagset.Float64Var(&flagStruct.Gauge, "gauge", 0, "Report a 'gauge' metric. Value must be float64.")
-	flagset.DurationVar(&flagStruct.Timing, "timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
+	flagset.DurationVar(&flagStruct.Timing, "timing", 0, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	flagset.Int64Var(&flagStruct.Count, "count", 0, "Report a 'count' metric. Value must be an integer.")
 	flagset.StringVar(&flagStruct.Set, "set", "", "Report a 'set' metric with an arbitrary string value.")
-	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
+	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow' or 'service:api,status_code:200'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
 	flagset.BoolVar(&flagStruct.ToSSF, "ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+	flagset.BoolVar(&flagStruct.ToGrpc, "grpc", false, "Send the metric over grpc (SSF format)")
 
 	// Event flags
 	// TODO: what should flags be called?
@@ -314,9 +428,13 @@ func flags(args []string) (Flags, map[string]flag.Value) {
 	flagset.StringVar(&flagStruct.Span.EndTime, "span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	flagset.StringVar(&flagStruct.Span.Service, "span_service", "veneur-emit", "Service name to associate with the span.")
 	flagset.BoolVar(&flagStruct.Span.Indicator, "indicator", false, "Mark the reported span as an indicator span")
+	flagset.BoolVar(&flagStruct.Span.Error, "error", false, "Mark the reported span as having errored")
 	flagset.StringVar(&flagStruct.Span.Tags, "span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
 
-	flagset.Parse(args[1:])
+	err := flagset.Parse(args[1:])
+	if err != nil {
+		return flagStruct, nil, err
+	}
 
 	flagStruct.ExtraArgs = make([]string, len(flagset.Args()))
 	copy(flagStruct.ExtraArgs, flagset.Args())
@@ -326,7 +444,7 @@ func flags(args []string) (Flags, map[string]flag.Value) {
 	flagset.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = f.Value
 	})
-	return flagStruct, passedFlags
+	return flagStruct, passedFlags, nil
 }
 
 func tagsFromString(csv string) map[string]string {
@@ -351,25 +469,39 @@ func tagsFromString(csv string) map[string]string {
 	return tags
 }
 
-func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
-	var addr string
-	if hostport != nil {
-		addr = *hostport
-	} else {
+func destination(hostport string, isGrpc bool) (string, net.Addr, error) {
+	defaultScheme := "udp"
+	if isGrpc {
+		defaultScheme = "tcp"
+	}
+	if hostport == "" {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}
-	netAddr, err := protocol.ResolveAddr(addr)
-	if err != nil {
-		// This is fine - we can attempt to treat the
-		// host:port combination as a UDP address:
-		addr = fmt.Sprintf("udp://%s", addr)
-		udpAddr, err := protocol.ResolveAddr(addr)
-		if err != nil {
-			return "", nil, err
-		}
-		return addr, udpAddr, nil
+
+	resolvedHostport, addr, err := resolveHostport(hostport, defaultScheme)
+	if err == nil {
+		return resolvedHostport, addr, nil
 	}
-	return addr, netAddr, nil
+	// This is fine - we can attempt to treat the
+	// host:port combination as a UDP address:
+	hostport = fmt.Sprintf("%s://%s", defaultScheme, hostport)
+	resolvedHostport, addr, err = resolveHostport(hostport, defaultScheme)
+	if err != nil {
+		return "", nil, err
+	}
+	return resolvedHostport, addr, nil
+}
+
+func resolveHostport(hostport string, defaultScheme string) (string, net.Addr, error) {
+	u, err := url.Parse(hostport)
+	if err != nil {
+		return "", nil, err
+	}
+	netAddr, err := protocol.ResolveAddr(u)
+	if err != nil {
+		return "", nil, err
+	}
+	return hostport, netAddr, nil
 }
 
 func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
@@ -389,7 +521,7 @@ func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
 	return
 }
 
-func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, indicator bool) (*ssf.SSFSpan, error) {
+func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, indicator, errFlag bool) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	if traceID != 0 {
 		span.TraceId = traceID
@@ -406,11 +538,17 @@ func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, in
 		}
 		span.Service = service
 		span.Indicator = indicator
+		span.Error = errFlag
 	}
 	return span, nil
 }
 
 func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
+	if len(command) == 0 {
+		exitStatus = 1
+		err = fmt.Errorf("cannot time an empty command")
+		return
+	}
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
 
@@ -439,11 +577,15 @@ func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start tim
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
 		if !ok {
+			logrus.WithError(err).WithField("command", command).Error("Abnormal exit from program")
 			exitStatus = 1
 			return
 		}
 		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
 		exitStatus = status.ExitStatus()
+		// if the inner command returned nonzero, we will propagate its exit code
+		// we don't need to also return an error
+		err = nil
 	}
 	logrus.Debugf("%q took %s", command, ended.Sub(start))
 	return
@@ -464,12 +606,15 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		span.StartTimestamp = start.UnixNano()
 		span.EndTimestamp = ended.UnixNano()
 		span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		if status != 0 {
+			span.Error = true
+		}
 	}
 
 	sf, shas := passedFlags["span_starttime"]
 	ef, ehas := passedFlags["span_endtime"]
 	if shas != ehas {
-		logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		return 0, errors.New("Must provide both -span_startime and -span_endtime, or neither")
 	}
 
 	if shas || ehas {
@@ -477,12 +622,12 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 
 		start, err = dateparse.ParseAny(sf.String())
 		if err != nil {
-			logrus.WithError(err).Fatal("Error parsing -span_starttime")
+			return 0, err
 		}
 
 		end, err = dateparse.ParseAny(ef.String())
 		if err != nil {
-			logrus.WithError(err).Fatal("Error parsing -span_endtime")
+			return 0, err
 		}
 
 		span.StartTimestamp = start.UnixNano()
@@ -535,10 +680,108 @@ func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
 	return <-done
 }
 
+// newDatadogTCPWriter is adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
+func newDatadogTCPWriter(addr string) (*datadogTCPWriter, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	writer := &datadogTCPWriter{conn: conn}
+	return writer, nil
+}
+
+type datadogTCPWriter struct {
+	conn net.Conn
+}
+
+func (w *datadogTCPWriter) Write(data []byte) (n int, err error) {
+	return w.conn.Write(data)
+}
+
+func (w *datadogTCPWriter) SetWriteTimeout(timeout time.Duration) error {
+	// This is unused in the current implementation
+	return nil
+}
+
+func (w *datadogTCPWriter) Close() error {
+	return w.conn.Close()
+}
+
+// newDatadogTCPWriter is adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
+func newDatadogGrpcWriter(netAddr net.Addr, addr string, proxyAddr net.Addr) (*datadogGrpcWriter, error) {
+	dialAddr := netAddr.String()
+	grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
+	if proxyAddr != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
+		}))
+
+		// If we are proxying then we want to pass the unresolved hostport to avoid SSL errors
+		dialAddr = addr
+	}
+	conn, err := grpc.Dial(dialAddr, grpcDialOptions...)
+	if err != nil {
+		logrus.WithError(err).Error("Could not dial grpc dogstatsd server")
+		return nil, err
+	}
+	client := dogstatsd.NewDogstatsdGRPCClient(conn)
+	writer := &datadogGrpcWriter{client: client, conn: conn}
+	return writer, nil
+}
+
+type datadogGrpcWriter struct {
+	client dogstatsd.DogstatsdGRPCClient
+	conn   *grpc.ClientConn
+}
+
+func (w *datadogGrpcWriter) Write(data []byte) (n int, err error) {
+	metricPacket := &dogstatsd.DogstatsdPacket{}
+	metricPacket.PacketBytes = data
+	_, err = w.client.SendPacket(context.Background(), metricPacket)
+	if err != nil {
+		logrus.WithError(err).Error("Error encountered while sending dogstatsd over grpc")
+		return 0, err
+	}
+	return len(data), nil
+}
+
+func (w *datadogGrpcWriter) SetWriteTimeout(timeout time.Duration) error {
+	// This is unused in the current implementation
+	return nil
+}
+
+func (w *datadogGrpcWriter) Close() error {
+	return w.conn.Close()
+}
+
 // sendStatsd sends the metrics gathered in a span to a dogstatsd
 // endpoint.
-func sendStatsd(addr string, span *ssf.SSFSpan) error {
-	client, err := statsd.New(addr)
+func sendStatsd(netAddr net.Addr, addr string, span *ssf.SSFSpan, useGrpc bool, proxyAddr net.Addr) error {
+	var client *statsd.Client
+	var err error
+	if useGrpc {
+		writer, err := newDatadogGrpcWriter(netAddr, addr, proxyAddr)
+		if err == nil {
+			client, err = statsd.NewWithWriter(writer, statsd.WithoutTelemetry())
+		}
+	} else {
+		network := netAddr.Network()
+		switch network {
+		case "udp":
+			client, err = statsd.New(netAddr.String(), statsd.WithoutTelemetry())
+		case "tcp":
+			writer, err := newDatadogTCPWriter(netAddr.String())
+			if err == nil {
+				client, err = statsd.NewWithWriter(writer, statsd.WithoutTelemetry())
+			}
+		default:
+			err = fmt.Errorf("%s is not supported for sending statsd metrics", network)
+		}
+	}
 	if err != nil {
 		return err
 	}
@@ -569,10 +812,13 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			return err
 		}
 	}
+	//Using Close() instead of Flush() avoids dropping metrics and avoids a potential race condition as called out here:
+	//https://github.com/DataDog/datadog-go/pull/120
+	client.Close()
 	return nil
 }
 
-func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []string) {
+func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []string) error {
 	// Figure out which mode we're in
 	var mode EmitMode
 	mv, has := passedFlags["mode"]
@@ -592,7 +838,7 @@ func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []str
 
 	for flagname := range passedFlags {
 		if fmode, has := flagModeMappings[flagname]; has && (fmode&mode) != mode {
-			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
+			return fmt.Errorf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
 		}
 	}
 
@@ -600,11 +846,11 @@ func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []str
 	for _, arg := range extraArgs {
 		if fmode, has := flagModeMappings[arg]; has && (fmode&mode) == mode {
 			if _, has := passedFlags[arg]; !has {
-				logrus.Fatalf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
+				return fmt.Errorf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
 			}
 		}
 	}
-
+	return nil
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {

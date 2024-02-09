@@ -5,15 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/segmentio/fasthash/fnv1a"
-	"github.com/stripe/veneur/protocol/dogstatsd"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/tagging"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 var invalidMetricTypeError = errors.New("Invalid type for metric")
@@ -32,7 +34,61 @@ type UDPMetric struct {
 	HostName   string
 }
 
+var emptyExtendTags = tagging.NewExtendTags([]string{})
+
+// UpdateTags ensures that JoinedTags and Digest are correct, and that any
+// extra tags that should be added to everything have been added. It's not
+// really the concern of this function which tags are present, but I've added
+// `extendTags` as an argument to ensure it doesn't get forgotten, since we
+// have so many different functions constructing UDPMetrics in different ways
+func (u *UDPMetric) UpdateTags(tags []string, extendTags *tagging.ExtendTags) {
+	if extendTags == nil {
+		// we don't expect to hit this case, but storing extendTags as a pointer to
+		// avoid copying in hot path. this will avoid a nil pointer dereference, and
+		// it's sane that if we don't specify any extend tags configuration that we
+		// don't add any new tags. the `Extend` method handles sorting and optional
+		// defensive copying though, so we want to use the same behavior
+		u.Tags = emptyExtendTags.Extend(tags, true)
+	} else {
+		u.Tags = extendTags.Extend(tags, true)
+	}
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, u.Name)
+	h = fnv1a.AddString32(h, u.Type)
+	u.JoinedTags = strings.Join(u.Tags, ",")
+	h = fnv1a.AddString32(h, u.JoinedTags)
+	u.Digest = h
+}
+
+// MetricScope describes where the metric will be emitted.
 type MetricScope int
+
+// ToPB maps the metric scope to a protobuf Scope type.
+func (m MetricScope) ToPB() metricpb.Scope {
+	switch m {
+	case MixedScope:
+		return metricpb.Scope_Mixed
+	case LocalOnly:
+		return metricpb.Scope_Local
+	case GlobalOnly:
+		return metricpb.Scope_Global
+	}
+	return 0
+}
+
+// ScopeFromPB creates an internal MetricScope type from the protobuf Scope type.
+func ScopeFromPB(scope metricpb.Scope) MetricScope {
+	switch scope {
+	case metricpb.Scope_Global:
+		return GlobalOnly
+	case metricpb.Scope_Local:
+		return LocalOnly
+	case metricpb.Scope_Mixed:
+		return MixedScope
+	}
+
+	return 0
+}
 
 const (
 	MixedScope MetricScope = iota
@@ -49,11 +105,23 @@ type MetricKey struct {
 
 // NewMetricKeyFromMetric initializes a MetricKey from the protobuf-compatible
 // metricpb.Metric
-func NewMetricKeyFromMetric(m *metricpb.Metric) MetricKey {
+func NewMetricKeyFromMetric(
+	m *metricpb.Metric, ignoredTags []matcher.TagMatcher,
+) MetricKey {
+	tags := []string{}
+tagLoop:
+	for _, tag := range m.Tags {
+		for _, matcher := range ignoredTags {
+			if matcher.Match(tag) {
+				continue tagLoop
+			}
+		}
+		tags = append(tags, tag)
+	}
 	return MetricKey{
 		Name:       m.Name,
 		Type:       strings.ToLower(m.Type.String()),
-		JoinedTags: strings.Join(m.Tags, ","),
+		JoinedTags: strings.Join(tags, ","),
 	}
 }
 
@@ -66,18 +134,30 @@ func (m MetricKey) String() string {
 	return buff.String()
 }
 
+type Parser struct {
+	extendTags *tagging.ExtendTags
+}
+
+func NewParser(tags []string) Parser {
+	extendTags := tagging.NewExtendTags(tags)
+
+	return Parser{
+		extendTags: &extendTags,
+	}
+}
+
 // ConvertMetrics examines an SSF message, parses and returns a new
 // array containing any metrics contained in the message. If any parse
 // error occurs in processing any of the metrics, ExtractMetrics
 // collects them into the error type InvalidMetrics and returns this
 // error alongside any valid metrics that could be parsed.
-func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
+func (p *Parser) ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 	samples := m.Metrics
 	metrics := make([]UDPMetric, 0, len(samples)+1)
 	invalid := []*ssf.SSFSample{}
 
 	for _, metricPacket := range samples {
-		metric, err := ParseMetricSSF(metricPacket)
+		metric, err := p.ParseMetricSSF(metricPacket)
 		if err != nil || !ValidMetric(metric) {
 			invalid = append(invalid, metricPacket)
 			continue
@@ -92,31 +172,62 @@ func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 
 // ConvertIndicatorMetrics takes a span that may be an "indicator"
 // span and returns metrics that can be determined from that
-// span. Currently, it converts the span to a timer metric for the
-// duration of the span.
-func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDPMetric, err error) {
-	if !span.Indicator || timerName == "" {
+// span. Currently, it converts the span to two timer metrics for the
+// duration of the span. One timer (the "indicator") is tagged with the
+// span's service and error-ness. The other timer (the "objective") is
+// tagged with the span's service, error-ness, and name. The name can
+// be overridden with the ssf_objective tag.
+func (p *Parser) ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, objectiveTimerName string) (metrics []UDPMetric, err error) {
+	if !span.Indicator || !protocol.ValidTrace(span) {
 		// No-op if this isn't an indicator span
 		return
 	}
 
 	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
 	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
-	tags := map[string]string{
-		"service": span.Service,
-		"error":   "false",
-	}
-	if span.Error {
-		tags["error"] = "true"
-	}
-	ssfTimer := ssf.Timing(timerName, end.Sub(start), time.Nanosecond, tags)
-	ssfTimer.Name = timerName // Ensure the name is free from any name prefixes, like "veneur."
+	duration := end.Sub(start)
 
-	timer, err := ParseMetricSSF(ssfTimer)
-	if err != nil {
-		return metrics, err
+	if indicatorTimerName != "" {
+		tags := map[string]string{
+			"service": span.Service,
+			"error":   "false",
+		}
+		if span.Error {
+			tags["error"] = "true"
+		}
+		ssfTimer := ssf.Timing(indicatorTimerName, duration, time.Nanosecond, tags)
+		ssfTimer.Name = indicatorTimerName // Ensure the name is free from any name prefixes, like "veneur."
+
+		timer, err := p.ParseMetricSSF(ssfTimer)
+		if err != nil {
+			return metrics, err
+		}
+		metrics = append(metrics, timer)
 	}
-	metrics = append(metrics, timer)
+
+	if objectiveTimerName != "" {
+		tags := map[string]string{
+			"service":          span.Service,
+			"objective":        span.Name,
+			"error":            "false",
+			"veneurglobalonly": "true",
+		}
+		if span.Tags["ssf_objective"] != "" {
+			tags["objective"] = span.Tags["ssf_objective"]
+		}
+		if span.Error {
+			tags["error"] = "true"
+		}
+		ssfTimer := ssf.Timing(objectiveTimerName, duration, time.Nanosecond, tags)
+		ssfTimer.Name = objectiveTimerName // Ensure the name is free from any name prefixes, like "veneur."
+
+		timer, err := p.ParseMetricSSF(ssfTimer)
+		if err != nil {
+			return metrics, err
+		}
+		metrics = append(metrics, timer)
+	}
+
 	return metrics, nil
 }
 
@@ -124,7 +235,7 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 // uniqueness metrics about it, returning UDPMetrics sampled at
 // rate. Currently, the only metric returned is a Set counting the
 // unique names per indicator span/service.
-func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
+func (p *Parser) ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
 	if span.Service == "" {
 		return []UDPMetric{}, nil
 	}
@@ -138,7 +249,7 @@ func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric,
 			}))...)
 	metrics := make([]UDPMetric, 0, len(ssfMetrics))
 	for _, m := range ssfMetrics {
-		udpM, err := ParseMetricSSF(m)
+		udpM, err := p.ParseMetricSSF(m)
 		if err != nil {
 			return []UDPMetric{}, err
 		}
@@ -176,13 +287,13 @@ func (err *invalidMetrics) Samples() []*ssf.SSFSample {
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+func (p *Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
-	h := fnv1a.Init32
-	h = fnv1a.AddString32(h, metric.Name)
+
 	ret.Name = metric.Name
+
 	switch metric.Metric {
 	case ssf.SSFSample_COUNTER:
 		ret.Type = "counter"
@@ -197,7 +308,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	default:
 		return UDPMetric{}, invalidMetricTypeError
 	}
-	h = fnv1a.AddString32(h, ret.Type)
+
 	switch metric.Metric {
 	case ssf.SSFSample_SET:
 		ret.Value = metric.Message
@@ -206,7 +317,16 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	default:
 		ret.Value = float64(metric.Value)
 	}
+
+	switch metric.Scope {
+	case ssf.SSFSample_LOCAL:
+		ret.Scope = LocalOnly
+	case ssf.SSFSample_GLOBAL:
+		ret.Scope = GlobalOnly
+	}
+
 	ret.SampleRate = metric.SampleRate
+
 	tempTags := make([]string, 0, len(metric.Tags))
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
@@ -219,141 +339,167 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 		}
 		tempTags = append(tempTags, key+":"+value)
 	}
-	sort.Strings(tempTags)
-	ret.Tags = tempTags
-	ret.JoinedTags = strings.Join(tempTags, ",")
-	h = fnv1a.AddString32(h, ret.JoinedTags)
-	ret.Digest = h
+	ret.UpdateTags(tempTags, p.extendTags)
+
 	return ret, nil
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte) (*UDPMetric, error) {
-	ret := &UDPMetric{
+func (p *Parser) ParseMetric(packet []byte, cb func(*UDPMetric)) error {
+	metric := &UDPMetric{
 		SampleRate: 1.0,
 	}
-	pipeSplitter := NewSplitBytes(packet, '|')
-	pipeSplitter.Next() // first split always succeeds, since there are at least zero pipes
-
-	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
-	if startingColon == -1 {
-		return nil, errors.New("Invalid metric packet, need at least 1 colon")
+	typeStart := bytes.IndexByte(packet, '|')
+	if typeStart < 0 {
+		return errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
-	nameChunk := pipeSplitter.Chunk()[:startingColon]
-	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
+
+	valueStart := bytes.IndexByte(packet[:typeStart], ':')
+	if valueStart == -1 {
+		return errors.New("Invalid metric packet, need at least 1 colon")
+	}
+	nameChunk := packet[:valueStart]
+	valueChunk := packet[valueStart+1 : typeStart]
+
 	if len(nameChunk) == 0 {
-		return nil, errors.New("Invalid metric packet, name cannot be empty")
+		return errors.New("Invalid metric packet, name cannot be empty")
 	}
 
-	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
+	metric.Name = string(nameChunk)
+
+	tagsStart := len(packet)
+	if idx := bytes.IndexByte(packet[typeStart+1:], '|'); idx > -1 {
+		tagsStart = typeStart + 1 + idx
 	}
-	typeChunk := pipeSplitter.Chunk()
+	typeChunk := packet[typeStart+1 : tagsStart]
+
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
-		return nil, errors.New("Invalid metric packet, metric type not specified")
+		return errors.New("Invalid metric packet, metric type not specified")
 	}
-
-	h := fnv1a.Init32
-
-	ret.Name = string(nameChunk)
-	h = fnv1a.AddString32(h, ret.Name)
 
 	// Decide on a type
 	switch typeChunk[0] {
 	case 'c':
-		ret.Type = "counter"
+		metric.Type = "counter"
 	case 'g':
-		ret.Type = "gauge"
-	case 'h':
-		ret.Type = "histogram"
+		metric.Type = "gauge"
+	case 'd', 'h': // consider DogStatsD's "distribution" to be a histogram
+		metric.Type = "histogram"
 	case 'm': // We can ignore the s in "ms"
-		ret.Type = "timer"
+		metric.Type = "timer"
 	case 's':
-		ret.Type = "set"
+		metric.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
-	}
-	// Add the type to the digest
-	h = fnv1a.AddString32(h, ret.Type)
-
-	// Now convert the metric's value
-	if ret.Type == "set" {
-		ret.Value = string(valueChunk)
-	} else {
-		v, err := strconv.ParseFloat(string(valueChunk), 64)
-		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
-		}
-		ret.Value = v
+		return invalidMetricTypeError
 	}
 
 	// each of these sections can only appear once in the packet
 	foundSampleRate := false
-	for pipeSplitter.Next() {
-		if len(pipeSplitter.Chunk()) == 0 {
+	var tempTags []string
+	for tagsStart < len(packet) {
+		tagsNext := len(packet)
+		idx := bytes.IndexByte(packet[tagsStart+1:], '|')
+		if idx > -1 {
+			tagsNext = tagsStart + 1 + idx
+		}
+		chunk := packet[tagsStart+1 : tagsNext]
+		tagsStart = tagsNext
+
+		if len(chunk) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
-			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
+			return fmt.Errorf("Invalid metric packet, empty string after/between pipes")
 		}
-		switch pipeSplitter.Chunk()[0] {
+		switch chunk[0] {
 		case '@':
 			if foundSampleRate {
-				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+				return errors.New("Invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
-			sr := string(pipeSplitter.Chunk()[1:])
+			sr := string(chunk[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
+				return fmt.Errorf("Invalid float for sample rate: %s", sr)
 			}
 			if sampleRate <= 0 || sampleRate > 1 {
-				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
+				return fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
 			}
-			ret.SampleRate = float32(sampleRate)
+			metric.SampleRate = float32(sampleRate)
 			foundSampleRate = true
 
 		case '#':
 			// tags!
-			if ret.Tags != nil {
-				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+			if tempTags != nil {
+				return errors.New("Invalid metric packet, multiple tag sections specified")
 			}
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
 			// see worker.go line 273
-			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			sort.Strings(tags)
-			for i, tag := range tags {
+			tempTags = strings.Split(string(chunk[1:]), ",")
+			for i, tag := range tempTags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
 				if strings.HasPrefix(tag, "veneurlocalonly") {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
-					ret.Scope = LocalOnly
+					tempTags = append(tempTags[:i], tempTags[i+1:]...)
+					metric.Scope = LocalOnly
 					break
 				} else if strings.HasPrefix(tag, "veneurglobalonly") {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
-					ret.Scope = GlobalOnly
+					tempTags = append(tempTags[:i], tempTags[i+1:]...)
+					metric.Scope = GlobalOnly
 					break
 				}
 			}
-			ret.Tags = tags
-			// we specifically need the sorted version here so that hashing over
-			// tags behaves deterministically
-			ret.JoinedTags = strings.Join(tags, ",")
-			h = fnv1a.AddString32(h, ret.JoinedTags)
-
 		default:
-			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
+			return fmt.Errorf("Invalid metric packet, contains unknown section %q", chunk)
 		}
 	}
 
-	ret.Digest = h
+	metric.UpdateTags(tempTags, p.extendTags)
 
-	return ret, nil
+	// Now convert the metric's value
+	for len(valueChunk) > 0 {
+		value := valueChunk
+		nextColon := bytes.IndexByte(valueChunk, ':')
+		ret := metric
+		if nextColon > -1 {
+			value = valueChunk[0:nextColon]
+			valueChunk = valueChunk[nextColon+1:]
+			// make a shallow copy of metric, so that the next iteration of the loop does not overwrite the same value
+			metric = &UDPMetric{
+				MetricKey: MetricKey{
+					Name:       metric.Name,
+					Type:       metric.Type,
+					JoinedTags: metric.JoinedTags,
+				},
+				Tags:       metric.Tags,
+				SampleRate: metric.SampleRate,
+				Scope:      metric.Scope,
+				Digest:     metric.Digest,
+			}
+		} else {
+			// indicate that we should terminate after this iteration
+			valueChunk = nil
+			// don't bother making a shallow copy of `metric` for the next loop iteration; there won't be one
+		}
+
+		if ret.Type == "set" {
+			ret.Value = string(value)
+		} else {
+			v, err := strconv.ParseFloat(string(value), 64)
+			if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
+				return fmt.Errorf("Invalid number for metric value: %s", string(value))
+			}
+			ret.Value = v
+		}
+		cb(ret)
+	}
+
+	return nil
 }
 
 // ParseEvent parses a DogStatsD event packet and returns an SSF sample or an
@@ -362,7 +508,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 // tags are set as defined in protocol/dogstatsd/protocol.go. Any sink that wants
 // to consume these events will then need to implement FlushOtherSamples and
 // unwind these special tags into whatever is appropriate for that sink.
-func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
+func (p *Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 
 	ret := &ssf.SSFSample{
 		Timestamp: time.Now().Unix(),
@@ -492,7 +638,7 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 				return nil, errors.New("Invalid event packet, multiple tag sections")
 			}
 			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			mappedTags := ParseTagSliceToMap(tags)
+			mappedTags := tagging.ParseTagSliceToMap(tags)
 			// We've already added some tags, so we'll just add these to the ones we've got.
 			for k, v := range mappedTags {
 				ret.Tags[k] = v
@@ -503,6 +649,10 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 		}
 	}
 
+	if p.extendTags != nil {
+		ret.Tags = p.extendTags.ExtendMap(ret.Tags, true)
+	}
+
 	return ret, nil
 }
 
@@ -510,7 +660,7 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 // returns a UDPMetric or an error on failure. The UDPMetric struct has explicit
 // fields for each value of a service status check and does not require
 // overloading magical tags for conversion.
-func ParseServiceCheck(packet []byte) (*UDPMetric, error) {
+func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 		Timestamp:  time.Now().Unix(),
@@ -555,6 +705,7 @@ func ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 		foundMessage   bool
 		foundTags      bool
 	)
+	var tempTags []string
 	for pipeSplitter.Next() {
 		if len(pipeSplitter.Chunk()) == 0 {
 			return nil, errors.New("Invalid service packet packet, empty string after/between pipes")
@@ -592,50 +743,28 @@ func ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 			if foundTags == true {
 				return nil, errors.New("Invalid service chack packet, multiple tag sections")
 			}
-			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			sort.Strings(tags)
-			for i, tag := range tags {
+			tempTags = strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
+			for i, tag := range tempTags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
 				if tag == "veneurlocalonly" {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
+					tempTags = append(tempTags[:i], tempTags[i+1:]...)
 					ret.Scope = LocalOnly
 					break
 				} else if tag == "veneurglobalonly" {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
+					tempTags = append(tempTags[:i], tempTags[i+1:]...)
 					ret.Scope = GlobalOnly
 					break
 				}
 			}
-			ret.Tags = tags
 			foundTags = true
 		default:
 			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
 		}
 	}
-	h := fnv1a.Init32
-	h = fnv1a.AddString32(h, ret.Name)
-	h = fnv1a.AddString32(h, ret.Type)
-	ret.JoinedTags = strings.Join(ret.Tags, ",")
-	h = fnv1a.AddString32(h, ret.JoinedTags)
-	ret.Digest = h
+	ret.UpdateTags(tempTags, p.extendTags)
 
 	return ret, nil
-}
-
-// ParseTagSliceToMap handles splitting a slice of string tags on `:` and
-// creating a map from the parts.
-func ParseTagSliceToMap(tags []string) map[string]string {
-	mappedTags := make(map[string]string)
-	for _, tag := range tags {
-		splt := strings.SplitN(tag, ":", 2)
-		if len(splt) < 2 {
-			mappedTags[splt[0]] = ""
-		} else {
-			mappedTags[splt[0]] = splt[1]
-		}
-	}
-	return mappedTags
 }

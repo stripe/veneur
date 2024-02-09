@@ -1,0 +1,6 @@
+# See go/stripe-build for more information about customizing this file
+---
+henson_tarball:
+  docker: {}
+network:
+  http_proxy_report_only: true

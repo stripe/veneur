@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,8 +10,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/testbackend"
 )
 
 var (
@@ -65,10 +65,17 @@ func TestTimeCommand(t *testing.T) {
 	})
 
 	t.Run("badCall", func(t *testing.T) {
-		command := []string{"false"}
+		command := []string{"sh", "-c", "exit 42"}
 		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
-		assert.Error(t, err, "timeCommand did not throw error.")
-		assert.NotZero(t, st)
+		assert.NoError(t, err, "timeCommand threw an error.")
+		assert.Equal(t, 42, st)
+	})
+
+	t.Run("emptyCall", func(t *testing.T) {
+		command := []string{}
+		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
+		assert.Error(t, err)
+		assert.Equal(t, 1, st)
 	})
 }
 
@@ -162,7 +169,7 @@ func TestBadCalls(t *testing.T) {
 
 func TestHostport(t *testing.T) {
 	testHostport := "127.0.0.1:8200"
-	addr, netAddr, err := destination(&testHostport, false)
+	addr, netAddr, err := destination(testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "udp://127.0.0.1:8200", addr)
 	assert.Equal(t, "127.0.0.1:8200", netAddr.String())
@@ -171,7 +178,7 @@ func TestHostport(t *testing.T) {
 
 func TestHostportAsURL(t *testing.T) {
 	testHostport := "tcp://127.0.0.1:8200"
-	addr, netAddr, err := destination(&testHostport, false)
+	addr, netAddr, err := destination(testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "tcp://127.0.0.1:8200", addr)
 	assert.Equal(t, "tcp", netAddr.Network())
@@ -179,7 +186,7 @@ func TestHostportAsURL(t *testing.T) {
 }
 
 func TestNilHostport(t *testing.T) {
-	addr, netAddr, err := destination(nil, false)
+	addr, netAddr, err := destination("", false)
 	assert.Empty(t, addr)
 	assert.Nil(t, netAddr)
 	assert.Error(t, err)
@@ -193,8 +200,10 @@ func TestTags(t *testing.T) {
 }
 
 func TestFlags(t *testing.T) {
-	_, outputFlags := flags([]string{"veneur-emit", "-name=testname"})
+	flagStruct, outputFlags, err := flags([]string{"veneur-emit", "-name=testname"})
+	assert.NoError(t, err)
 	assert.NotNil(t, outputFlags["name"])
+	assert.Equal(t, "testname", flagStruct.Name)
 }
 
 func TestCreateMetrics(t *testing.T) {
@@ -250,31 +259,8 @@ func TestInferID(t *testing.T) {
 	}
 }
 
-type testBackend struct {
-	t      *testing.T
-	ch     chan *ssf.SSFSpan
-	errors chan error
-}
-
-func (tb *testBackend) Close() error {
-	tb.t.Logf("Closing backend")
-	close(tb.ch)
-	close(tb.errors)
-	return nil
-}
-
-func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	tb.t.Logf("Sending span")
-	tb.ch <- span
-	return <-tb.errors
-}
-
-func (tb *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func TestSetupSpanWithTracing(t *testing.T) {
-	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false)
+	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false, true)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, span.Id)
 		assert.Equal(t, int64(1), span.TraceId)
@@ -284,17 +270,19 @@ func TestSetupSpanWithTracing(t *testing.T) {
 		assert.Equal(t, 2, len(span.Tags))
 		assert.Equal(t, span.Tags["hi"], "there")
 		assert.Equal(t, span.Tags["foo"], "bar")
+		assert.Equal(t, span.Error, true)
 	}
 }
 
 func TestSetupSpanWithoutTracing(t *testing.T) {
-	span, err := setupSpan(0, 0, "oink", "hi:there", "oink-srv", "", false)
+	span, err := setupSpan(0, 0, "oink", "hi:there", "oink-srv", "", false, false)
 	if assert.NoError(t, err) {
 		assert.Zero(t, span.Id)
 		assert.Zero(t, span.TraceId)
 		assert.Zero(t, span.ParentId)
 		assert.Equal(t, "", span.Name)
 		assert.Equal(t, 0, len(span.Tags))
+		assert.Equal(t, span.Indicator, false)
 	}
 }
 
@@ -305,13 +293,10 @@ func TestSendSpan(t *testing.T) {
 	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
-	errors := make(chan error, 1)
-	be := &testBackend{t: t, ch: ch, errors: errors}
-	defer be.Close()
-	cl, err := trace.NewBackendClient(be)
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch,
+		testbackend.SendErrors(func(*ssf.SSFSpan) error { return nil })))
 	require.NoError(t, err)
 
-	be.errors <- nil
 	err = sendSSF(cl, span)
 	assert.NoError(t, err)
 
@@ -327,13 +312,10 @@ func TestBadSendSpan(t *testing.T) {
 	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
-	errors := make(chan error, 1)
-	be := &testBackend{t: t, ch: ch, errors: errors}
-	defer be.Close()
-	cl, err := trace.NewBackendClient(be)
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch,
+		testbackend.SendErrors(func(*ssf.SSFSpan) error { return fmt.Errorf("a potential error in sending") })))
 	require.NoError(t, err)
 
-	errors <- fmt.Errorf("a potential error in sending")
 	err = sendSSF(cl, span)
 	assert.Error(t, err)
 }
@@ -504,8 +486,95 @@ func TestBuilldSCPacket(t *testing.T) {
 	})
 }
 
-func resetMap(m map[string]bool) {
-	for key := range m {
-		m[key] = false
-	}
+func TestInvocations(t *testing.T) {
+	// span with no metrics
+	assert.Zero(t, Main([]string{
+		"veneur-emit",
+		"-ssf",
+		"-hostport",
+		"localhost:8128",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-span_starttime",
+		"1538606608882",
+		"-span_endtime",
+		"1538606608882",
+	}))
+
+	// span with nonzero command
+	assert.Equal(t, 42, Main([]string{
+		"veneur-emit",
+		"-ssf",
+		"-hostport",
+		"localhost:8128",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-command",
+		"sh",
+		"-c",
+		"exit 42",
+	}))
+
+	// udp span
+	assert.NotZero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-hostport",
+		"localhost:8128",
+		"-span_starttime",
+		"1538606608882",
+		"-span_endtime",
+		"1538606608882",
+	}))
+
+	// udp metrics
+	assert.Zero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-tag",
+		"dog_type:doggo",
+		"-name",
+		"dogs.let_out",
+		"-count",
+		"1",
+	}))
+
+	// udp with no metrics
+	assert.NotZero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-tag",
+		"dog_type:doggo",
+		"-name",
+		"dogs.let_out",
+	}))
 }

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 var tracer = trace.GlobalTracer
@@ -131,6 +131,9 @@ func (tripper *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	span.SetTag("action", tripper.prefix)
 	defer span.ClientFinish(tripper.tc)
 
+	// Add OpenTracing headers to the request, so downstream reqs can be identified:
+	trace.GlobalTracer.InjectRequest(span.Trace, req)
+
 	hct := newHTTPClientTracer(span.Attach(req.Context()), tripper.tc, tripper.prefix)
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
 	defer hct.finishSpan()
@@ -153,7 +156,11 @@ func mergeTags(tags map[string]string, k, v string) map[string]string {
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, method string, endpoint string, bodyObject interface{}, action string, compress bool, extraTags map[string]string, log *logrus.Logger) error {
+func PostHelper(
+	ctx context.Context, httpClient *http.Client, tc *trace.Client, method string,
+	endpoint string, bodyObject interface{}, action string, compress bool,
+	extraTags map[string]string, log *logrus.Entry,
+) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
 	for k, v := range extraTags {

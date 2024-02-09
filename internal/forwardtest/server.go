@@ -1,16 +1,18 @@
 package forwardtest
 
 import (
+	"io"
 	"net"
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
-	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
 
-	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 )
 
 // SendMetricHandler is a handler that is called when a Server gets a
@@ -51,7 +53,7 @@ func (s *Server) Start(t testing.TB) {
 	}
 
 	go func() {
-		if err := s.Serve(s.lis); err != nil {
+		if err := s.Serve(s.lis); err != nil && err != grpc.ErrServerStopped {
 			t.Logf("failed to stop the test forwarding gRPC server: %v", err)
 		}
 	}()
@@ -70,4 +72,23 @@ func (s *Server) Addr() net.Addr {
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
 	s.handler(mlist.Metrics)
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) SendMetricsV2(
+	server forwardrpc.Forward_SendMetricsV2Server,
+) error {
+	metrics := []*metricpb.Metric{}
+	for {
+		metric, err := server.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
+	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+		Metrics: metrics,
+	})
+	return err
 }
